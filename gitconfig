@@ -1,0 +1,49 @@
+[user]
+    name = Frédéric Maquin
+    email = maquin.frederic@gmail.com
+
+[color]
+    ui = auto
+
+[core]
+    editor = mate -w
+    excludesfile = ~/.gitignore
+
+[alias]
+    # Unstage the changes in a given file.
+    unstage = reset HEAD --
+
+    # View the current changes in the staging area.
+    staged = diff --cached
+
+    # Print the name of the current upstream tracking branch.
+    upstream = !git config --get branch.$(git current-branch).remote || echo origin
+
+    lol = log --graph --decorate --pretty=oneline --abbrev-commit
+    lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
+
+    st = status
+    df = diff
+    co = checkout
+    ci = commit
+    br = branch
+
+[branch]
+    autosetuprebase = always
+
+[merge]
+    # Use the OS X graphical three-way merge tool for graphical merges.
+    tool = opendiff
+
+[mergetool]
+    # Don't prompt before opening the merge tool.
+    prompt = false
+    # Don't keep backups of the merge tool inputs.
+    keepBackup = false
+    # Don't keep the merge tool temporary input/output files.
+    keepTemporaries = false
+
+[filter "lfs"]
+    clean = git-lfs clean %f
+    smudge = git-lfs smudge %f
+    required = true

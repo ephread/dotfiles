@@ -1,0 +1,59 @@
+#!/bin/sh
+# Install all dotfiles into the home directory
+
+DOTFILESDIRREL=$(dirname $0)
+cd $DOTFILESDIRREL/..
+DOTFILESDIR=$(pwd -P)
+
+configure_aqua () {
+  chflags nohidden $HOME/Library/
+
+  defaults write com.apple.dock autohide -bool true
+  defaults write com.apple.dock showhidden -bool true;
+  defaults write com.apple.dock orientation left
+
+  default write com.apple.finder ShowExternalHardDrivesOnDesktop -bool true;
+  default write com.apple.finder ShowHardDrivesOnDesktop -bool true;
+  default write com.apple.finder ShowMountedServersOnDesktop -bool true;
+  default write com.apple.finder ShowRemovableMediaOnDesktop -bool true;
+
+  defaults write com.apple.desktopservices DSDontWriteNetworkStores left
+  defaults write -g com.apple.swipescrolldirection -bool false
+
+  sudo spctl --master-disable
+  defaults write com.apple.LaunchServices LSQuarantine -bool false
+}
+
+configure_zsh () {
+  for DOTFILE in *; do
+    HOMEFILE="$HOME/.$DOTFILE"
+    [ -d $DOTFILE ] && DOTFILE="$DOTFILE/"
+    DIRFILE="$DOTFILESDIR/$DOTFILE"
+
+    echo $DOTFILE | egrep -q '(^script/$|^extra/$|\.txt$|\.md$)' && continue
+    echo $DOTFILE | grep -q '\.sh' && HOMEFILE="$HOME/.$(echo $DOTFILE | sed -e 's/\.sh//')"
+
+    if [ -L "$HOMEFILE" ] && ! [ -d $DOTFILE ]
+    then
+      ln -sfv "$DIRFILE" "$HOMEFILE"
+    else
+      rm -rv "$HOMEFILE"
+      ln -sv "$DIRFILE" "$HOMEFILE"
+    fi
+  done
+
+  ./prezto
+  chsh -s /bin/zsh
+}
+
+configure_atom() {
+  apm install --packages-file $HOME/.Atomfile
+}
+
+main () {
+  configure_zsh
+  configure_aqua
+  configure_atom
+}
+
+main $@
