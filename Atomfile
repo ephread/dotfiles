@@ -12,6 +12,7 @@ linter-clang
 linter-erb
 linter-eslint
 linter-htmlhint
+linter-jsonlint
 linter-scss-lint
 linter-swiftc
 minimap

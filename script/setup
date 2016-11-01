@@ -22,6 +22,9 @@ configure_aqua () {
 
   sudo spctl --master-disable
   defaults write com.apple.LaunchServices LSQuarantine -bool false
+
+  killall Dock
+  killall Finder
 }
 
 configure_zsh () {
