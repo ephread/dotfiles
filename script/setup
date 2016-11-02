@@ -20,9 +20,6 @@ configure_aqua () {
   defaults write com.apple.desktopservices DSDontWriteNetworkStores left
   defaults write -g com.apple.swipescrolldirection -bool false
 
-  sudo spctl --master-disable
-  defaults write com.apple.LaunchServices LSQuarantine -bool false
-
   killall Dock
   killall Finder
 }
