@@ -1,5 +1,4 @@
 # Setup
-tap 'homebrew/cask-cask'
 tap 'homebrew/cask-fonts'
 tap 'homebrew/bundle'
 tap 'homebrew/core'
