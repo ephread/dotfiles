@@ -15,7 +15,6 @@ brew 'node-build'
 brew 'nodenv'
 
 cask 'firefox'
-cask 'sizeup'
 cask 'sketch'
 cask 'iterm2'
 cask 'macdown'
