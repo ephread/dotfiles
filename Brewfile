@@ -26,5 +26,4 @@ cask 'font-fira-code'
 cask 'vlc'
 cask 'spotify'
 
-mas 'Xcode', id: 497799835
 mas 'Slack', id: 803453959
