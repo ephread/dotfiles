@@ -1,11 +1,9 @@
 # Setup
-tap 'caskroom/cask'
-tap 'caskroom/fonts'
+tap 'homebrew/cask-cask'
+tap 'homebrew/cask-fonts'
 tap 'homebrew/bundle'
 tap 'homebrew/core'
 tap 'homebrew/services'
-tap 'homebrew/versions'
-tap 'homebrew/cask-fonts'
 
 brew 'git'
 brew 'openssl'
