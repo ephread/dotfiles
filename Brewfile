@@ -34,6 +34,7 @@ cask 'gitkraken'
 cask '1password'
 cask '1password-cli'
 cask 'zoomus'
+cask 'tuxera-ntfs'
 
 mas 'Xcode', id: 497799835
 mas 'The Unarchiver', id: 425424353
