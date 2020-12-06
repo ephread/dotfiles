@@ -13,10 +13,8 @@ brew 'rbenv'
 brew 'rbenv-default-gems'
 brew 'node-build'
 brew 'nodenv'
-brew 'swiftlint'
 brew 'swiftgen'
 brew 'swiftformat'
-brew 'sourcery'
 brew 'z'
 brew 'git-lfs'
 brew 'carthage'
@@ -43,3 +41,6 @@ mas 'Boop', id: 1518425043
 mas 'Apple Developer', id: 640199958
 mas 'Affinity Photo', id: 824183456
 mas 'Affinity Designer', id: 824171161
+
+brew 'swiftlint'
+brew 'sourcery'

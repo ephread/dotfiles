@@ -42,7 +42,7 @@ configure_zsh () {
     fi
   done
 
-  $DOTFILESDIRREL/script/prezto
+  $DOTFILESDIRREL/prezto
   chsh -s /bin/zsh
 }
 
