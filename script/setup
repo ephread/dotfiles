@@ -1,8 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 # Install all dotfiles into the home directory
 
-DOTFILESDIRREL=$(dirname $0)
-cd $DOTFILESDIRREL/..
+SCRIPTS_DIR=$(dirname $0)
+cd $SCRIPTS_DIR/..
 DOTFILESDIR=$(pwd -P)
 
 configure_aqua () {
@@ -42,7 +42,7 @@ configure_zsh () {
     fi
   done
 
-  $DOTFILESDIRREL/prezto
+  $SCRIPTS_DIR/lib/prezto
   chsh -s /bin/zsh
 }
 

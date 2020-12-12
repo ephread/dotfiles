@@ -1,0 +1,47 @@
+#!/bin/bash
+
+FONT_AND_COLOR_THEMES_DIR="~/Library/Developer/Xcode/UserData/FontAndColorThemes"
+
+SCRIPTS_DIR=$(dirname $0)
+cd $SCRIPTS_DIR/..
+DOTFILES_DIR=$(pwd -P)
+
+configure_misc () {
+    # Accept Xcode license
+    sudo xcodebuild -license accept
+
+    # Install formula requiring Xcode
+    brew bundle --file "$DOTFILES_DIR/.dotfiles/Brewfile-after"
+
+    # Copy theme files
+    mkdir -p "$FONT_AND_COLOR_THEMES_DIR"
+    cp "$DOTFILES_DIR/extra/themes/xcode/*" "$FONT_AND_COLOR_THEMES_DIR"
+
+    # Setup SSH & Git
+    if [ ! -f "$HOME/.ssh/id_ed25519" ]; then
+        read -p "What email should be used to tag the SSH key? " email
+        ssh-keygen -t ed25519 -C "$email"
+
+        ssh_config_file="$HOME/.ssh/config"
+        if [ ! -f "$ssh_config_file" ]; then
+            touch "$ssh_config_file"
+            cat >> "$ssh_config_file" <<- EOM
+Host *
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile ~/.ssh/id_ed25519
+EOM
+        fi
+    fi
+}
+
+configure_vscode () {
+  $SCRIPTS_DIR/lib/prezto
+}
+
+main () {
+  configure_misc
+  configure_vscode
+}
+
+main $@
