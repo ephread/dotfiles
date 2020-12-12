@@ -1,2 +1,29 @@
 #!/bin/bash
 
+# I'm too lazy to write this with a non-duplicated path.
+
+COMMAND="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
+
+my_code() {
+    "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" --install-extension $1
+}
+
+if [ -f "$COMMAND" ]; then
+    my_code "nick-rudenko.back-n-forth"
+    my_code "hookyqr.beautify"
+    my_code "michelemelluso.code-beautifier"
+    my_code "editorconfig.editorconfig"
+    my_code "dbaeumer.vscode-eslint"
+    my_code "eamodio.gitlens"
+    my_code "orta.vscode-ios-common-files"
+    my_code "eriklynd.json-tools"
+    my_code "pkief.material-icon-theme"
+    my_code "whizkydee.material-palenight-theme"
+    my_code "esbenp.prettier-vscode"
+    my_code "robinbentley.sass-indented"
+    my_code "tyriar.sort-lines"
+    my_code "unional.vscode-sort-package-json"
+    my_code "togusa09.tmlanguage"
+    my_code "ms-vscode.vscode-typescript-tslint-plugin"
+    my_code "travisthetechie.write-good-linter"
+fi
