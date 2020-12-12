@@ -1,0 +1,42 @@
+#!/bin/bash
+set -e
+
+DOTFILES_DIR="$(dirname $0)/.."
+
+LIBRARY_DIR="$HOME/Library/"
+THEMES_DIR="$LIBRARY_DIR/Developer/Xcode/UserData/FontAndColorThemes"
+
+XCODE_PREFERENCES_DIR="$HOME/Library/Preferences"
+XCODE_PREFERENCES="com.apple.dt.Xcode.plist"
+
+copy_xcode_preferences () {
+  echo "--> Copying default Xcode preferences"
+  cp "$DOTFILES_DIR/extra/xcode/$XCODE_PREFERENCES" \
+     "$XCODE_PREFERENCES_DIR/$XCODE_PREFERENCES"
+}
+
+copy_xcode_preferences_if_allowed () {
+  if [[ -f "$XCODE_PREFERENCES_DIR/$XCODE_PREFERENCES" ]]; then
+    if [[ "${KEEP_XCODE_PREFERENCES-NO}" == "NO" ]]; then
+      copy_xcode_preferences
+    fi
+  else
+    copy_xcode_preferences
+  fi
+}
+
+main () {
+  echo "--> Preparing Xcode."
+
+  # Accept Xcode's license
+  sudo xcodebuild -license accept
+
+  # Copy theme files
+  mkdir -p "$THEMES_DIR"
+  cp "$DOTFILES_DIR"/extra/xcode/themes/* "$THEMES_DIR"
+
+  # Copy preferences
+  copy_xcode_preferences_if_allowed
+}
+
+main $@

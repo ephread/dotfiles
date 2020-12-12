@@ -1,0 +1,51 @@
+#!/bin/bash
+set -e
+
+DOTFILES_DIR="$(dirname $0)/.."
+
+VSCODE_PREFERENCES_DIR="$HOME/Library/Application Support/Code/User"
+VSCODE_PREFERENCES="settings.json"
+
+CODE="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
+EXTENSIONS="$("$CODE" --list-extensions)"
+
+install_extensions () {
+  if [ -f "$CODE" ]; then
+    for EXTENSION in $(cat "$DOTFILES_DIR/extra/vscode/extensions"); do
+      if echo "$EXTENSIONS" | grep -q "$EXTENSION"
+      then
+        echo "Extension '$EXTENSION' is already installed."
+      else
+        "$CODE" --install-extension "$EXTENSION" --force
+      fi
+    done
+  fi
+}
+
+copy_vscode_preferences () {
+  echo "--> Copying default VS Code preferences"
+  cp "$DOTFILES_DIR/extra/vscode/$VSCODE_PREFERENCES" \
+     "$VSCODE_PREFERENCES_DIR/$VSCODE_PREFERENCES"
+}
+
+copy_vscode_preferences_if_allowed () {
+  if [[ -f "$VSCODE_PREFERENCES_DIR/$VSCODE_PREFERENCES" ]]; then
+    if [[ "${KEEP_VSCODE_PREFERENCES-NO}" == "NO" ]]; then
+      copy_vscode_preferences
+    fi
+  else
+    copy_vscode_preferences
+  fi
+}
+
+main () {
+  echo "--> Installing VSCode extensions:"
+
+  # Install Extensions
+  install_extensions
+
+  # Copy preferences
+  copy_vscode_preferences_if_allowed
+}
+
+main $@
