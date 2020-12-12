@@ -1,22 +1,19 @@
 #!/bin/bash
 
-FONT_AND_COLOR_THEMES_DIR="~/Library/Developer/Xcode/UserData/FontAndColorThemes"
+FONT_AND_COLOR_THEMES_DIR="$HOME/Library/Developer/Xcode/UserData/FontAndColorThemes"
+PREFERENCES_DIR="$HOME/Library/Preferences"
+PREFERENCE_PLIST="com.apple.dt.Xcode.plist"
 
 SCRIPTS_DIR=$(dirname $0)
 cd $SCRIPTS_DIR/..
 DOTFILES_DIR=$(pwd -P)
 
 configure_misc () {
-    # Accept Xcode license
-    sudo xcodebuild -license accept
-
+    echo "--> Installing formulas requiring Xcode:"
     # Install formula requiring Xcode
-    brew bundle --file "$DOTFILES_DIR/.dotfiles/Brewfile-after"
+    brew bundle --file "$DOTFILES_DIR/Brewfile-after"
 
-    # Copy theme files
-    mkdir -p "$FONT_AND_COLOR_THEMES_DIR"
-    cp "$DOTFILES_DIR/extra/themes/xcode/*" "$FONT_AND_COLOR_THEMES_DIR"
-
+    echo "--> Preparing SSH configuration."
     # Setup SSH & Git
     if [ ! -f "$HOME/.ssh/id_ed25519" ]; then
         read -p "What email should be used to tag the SSH key? " email
@@ -35,13 +32,46 @@ EOM
     fi
 }
 
+
+copy_xcode_preferences () {
+  echo "--> Copying default preferences"
+  cp "$DOTFILES_DIR/extra/xcode/$PREFERENCE_PLIST" "$PREFERENCES_DIR/$PREFERENCE_PLIST"
+}
+
+copy_xcode_preferences_if_allowed () {
+  if [[ -f "$PREFERENCES_DIR/$PREFERENCE_PLIST" ]]; then
+    if [[ "${OVERWRITE_XCODE_PREFERENCES-NO}" != "NO" ]]; then
+      copy_xcode_preferences
+    fi
+  else
+    copy_xcode_preferences
+  fi
+}
+
+configure_xcode () {
+  echo "--> Preparing Xcode."
+  # Accept Xcode's license
+  sudo xcodebuild -license accept
+
+  # Copy theme files
+  mkdir -p "$FONT_AND_COLOR_THEMES_DIR"
+  cp "$DOTFILES_DIR"/extra/xcode/themes/* "$FONT_AND_COLOR_THEMES_DIR"
+
+  # Copy preferences
+  copy_xcode_preferences_if_allowed
+}
+
 configure_vscode () {
-  $SCRIPTS_DIR/lib/prezto
+  echo "--> Installing VSCode extensions:"
+  "$SCRIPTS_DIR/install-vscode-extensions"
 }
 
 main () {
+  configure_xcode
   configure_misc
   configure_vscode
+
+  sudo chsh -s /bin/zsh fred
 }
 
 main $@

@@ -1,4 +1,5 @@
 #!/bin/zsh
+set -e
 
 git clone --recursive https://github.com/ephread/prezto.git "${ZDOTDIR:-$HOME}/.zprezto"
 

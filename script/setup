@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # Install all dotfiles into the home directory
 
 SCRIPTS_DIR=$(dirname $0)
@@ -6,6 +7,7 @@ cd $SCRIPTS_DIR/..
 DOTFILESDIR=$(pwd -P)
 
 configure_aqua () {
+  echo "--> Configuring Aqua."
   chflags nohidden $HOME/Library/
 
   defaults write com.apple.dock autohide -bool true
@@ -25,6 +27,7 @@ configure_aqua () {
 }
 
 configure_zsh () {
+  echo "--> Configuring ZSH."
   for DOTFILE in *; do
     HOMEFILE="$HOME/.$DOTFILE"
     [ -d $DOTFILE ] && DOTFILE="$DOTFILE/"
@@ -42,8 +45,7 @@ configure_zsh () {
     fi
   done
 
-  $SCRIPTS_DIR/lib/prezto
-  chsh -s /bin/zsh
+  $SCRIPTS_DIR/prezto
 }
 
 main () {

@@ -1,0 +1,42 @@
+{
+    "telemetry.enableTelemetry": false,
+    "workbench.iconTheme": "material-icon-theme",
+    "materialTheme.fixIconsRunning": false,
+    "window.zoomLevel": 0,
+    "editor.fontSize": 16,
+    "editor.fontFamily": "Fira Code, Inconsolata, Menlo, Monaco, 'Courier New', monospace",
+    "files.associations": {
+        "*.dsa": "javascript"
+    },
+
+    "editor.wordWrapColumn": 100,
+    "editor.rulers": [80, 100, 120],
+    "editor.minimap.renderCharacters": false,
+    "editor.renderWhitespace": "all",
+    "gitlens.advanced.messages": {
+        "suppressShowKeyBindingsNotice": true
+    },
+    "files.trimTrailingWhitespace": true,
+    "editor.minimap.enabled": true,
+    "typescript.updateImportsOnFileMove.enabled": "always",
+    "gitlens.advanced.telemetry.enabled": false,
+    "gitlens.codeLens.authors.enabled": false,
+    "editor.codeLens": false,
+    "breadcrumbs.enabled": true,
+    "[javascript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "prettier.tslintIntegration": true,
+    "[typescript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "workbench.colorTheme": "Palenight Theme",
+    "javascript.updateImportsOnFileMove.enabled": "always",
+    "debug.onTaskErrors": "debugAnyway",
+    "editor.fontLigatures": true,
+    "omnisharp.enableRoslynAnalyzers": true,
+    "write-good.write-good-config": {},
+    "[html]": {
+        "editor.defaultFormatter": "HookyQR.beautify"
+    }
+}

@@ -1,0 +1,17 @@
+#!/bin/bash
+set -e
+
+CODE="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
+EXTENSIONS="$("$CODE" --list-extensions)"
+
+if [ -f "$CODE" ]; then
+  for EXTENSION in $(cat $(dirname $0)/../extra/vscode/extensions)
+  do
+    if echo "$EXTENSIONS" | grep -q "$EXTENSION"
+    then
+      echo "Extension '$EXTENSION' is already installed."
+    else
+      "$CODE" --install-extension "$EXTENSION" --force
+    fi
+  done
+fi
