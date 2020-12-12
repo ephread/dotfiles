@@ -6,7 +6,7 @@ configure_nodenv() {
 
   NODE_LATEST_VERSION=$(nodenv install -l | grep -v - | grep "^[0-9]" | tail -1)
 
-  nodenv install "$NODE_LATEST_VERSION"
+  nodenv install "$NODE_LATEST_VERSION" --skip-existing
   nodenv global "$NODE_LATEST_VERSION"
   nodenv rehash
 }
@@ -16,7 +16,7 @@ configure_rbenv() {
 
   RUBY_LATEST_VERSION=$(rbenv install -l | grep -v - | grep "^[0-9]" | tail -1)
 
-  rbenv install "$RUBY_LATEST_VERSION"
+  rbenv install "$RUBY_LATEST_VERSION" --skip-existing
   rbenv global "$RUBY_LATEST_VERSION"
   rbenv rehash
 
