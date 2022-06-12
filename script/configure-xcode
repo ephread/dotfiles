@@ -26,6 +26,9 @@ copy_xcode_preferences_if_allowed () {
 }
 
 main () {
+  echo "--> Install latest Xcode."
+  xcodes install --latest --experimental-unxip
+
   echo "--> Preparing Xcode."
 
   # Accept Xcode's license
