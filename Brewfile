@@ -13,13 +13,16 @@ brew 'rbenv'
 brew 'rbenv-default-gems'
 brew 'node-build'
 brew 'nodenv'
+brew 'mint'
 brew 'swiftgen'
+brew 'swiftlint'
 brew 'swiftformat'
 brew 'z'
 brew 'git-lfs'
 brew 'carthage'
 brew 'ffmpeg'
 brew 'imagemagick'
+brew 'gh'
 
 cask 'firefox'
 cask 'google-chrome'
@@ -33,18 +36,19 @@ cask 'vlc'
 cask 'spotify'
 cask 'visual-studio-code'
 cask 'sourcetree'
-cask '1password'
 cask '1password-cli'
 cask 'zoom'
 cask 'tuxera-ntfs'
 cask 'toggl-track'
 cask 'discord'
 cask 'telegram'
+cask 'signal'
 cask 'iina'
+cask 'slack'
+cask 'discord'
 
-mas 'Xcode', id: 497799835
+mas '1Password', id: 1333542190
 mas 'The Unarchiver', id: 425424353
-mas 'Slack', id: 803453959
 mas 'Boop', id: 1518425043
 mas 'Apple Developer', id: 640199958
 mas 'Affinity Photo', id: 824183456
