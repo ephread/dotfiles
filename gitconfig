@@ -20,22 +20,35 @@
     upstream = !git config --get branch.$(git current-branch).remote || echo origin
 
     lol = log --graph --decorate --pretty=oneline --abbrev-commit
+    lold = log --graph --pretty=format:\"%C(auto)%h%d%Creset %C(cyan)(%ci)%Creset %C(green)%cn <%ce>%Creset %s\"
     lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
 
     st = status
     df = diff
     co = checkout
     ci = commit
-    br = branch
+    br = branch --format='%(HEAD) %(color:yellow)%(refname:short)%(color:reset) - %(contents:subject) %(color:green)(%(committerdate:relative)) [%(authorname)]' --sort=-committerdate
+    ll = log --oneline
+    last = log -1 HEAD --stat
+
+    save = !git add -A && git commit -m 'chore: wip/savepoint'
+    done = !git push origin HEAD
 
 [branch]
     autosetuprebase = always
 
+[diff]
+    tool = default-difftool
+
+[difftool "default-difftool"]
+    cmd = code --wait --diff $LOCAL $REMOTE
+
 [merge]
     # Use the OS X graphical three-way merge tool for graphical merges.
-    tool = opendiff
+    tool = code
 
-[mergetool]
+[mergetool "code"]
+    cmd = code --wait --merge $REMOTE $LOCAL $BASE $MERGED
     # Don't prompt before opening the merge tool.
     prompt = false
     # Don't keep backups of the merge tool inputs.
@@ -43,11 +56,6 @@
     # Don't keep the merge tool temporary input/output files.
     keepTemporaries = false
 
-[filter "lfs"]
-    clean = git-lfs clean -- %f
-    smudge = git-lfs smudge -- %f
-    required = true
-    process = git-lfs filter-process
 [github]
     user = ephread
 [push]
@@ -56,3 +64,10 @@
     helper = osxkeychain
 [init]
     defaultBranch = main
+[commit]
+	gpgsign = true
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
