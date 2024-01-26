@@ -14,5 +14,4 @@ ehthumbs.db
 /tags
 /.bundle/
 
-Brewfile-after.lock.json
 Brewfile.lock.json

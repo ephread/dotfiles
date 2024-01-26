@@ -6,12 +6,6 @@ SCRIPTS_DIR=$(dirname $0)
 cd $SCRIPTS_DIR/..
 DOTFILES_DIR=$(pwd -P)
 
-install_formulae () {
-    echo "--> Installing formulae requiring Xcode:"
-    # Install formulae requiring Xcode to be present
-    brew bundle --file "$DOTFILES_DIR/Brewfile-after"
-}
-
 configure_ssh () {
   echo "--> Preparing SSH configuration."
   # Setup SSH & Git
@@ -36,7 +30,6 @@ main () {
   "$SCRIPTS_DIR/configure-rbenv-nodenv"
 
   configure_ssh
-  install_formulae
 
   sudo chsh -s /bin/zsh fred
 }

@@ -6,52 +6,64 @@ tap 'homebrew/services'
 tap 'robotsandpencils/made'
 
 brew 'git'
+brew 'git-lfs'
+
 brew 'openssl'
 brew 'pkg-config'
-brew 'mas'
-brew 'ruby-build'
+
+brew 'imagemagick'
+brew 'ffmpeg'
+
 brew 'rbenv'
+brew 'nodenv'
+brew 'pyenv'
+
+brew 'ruby-build'
 brew 'rbenv-default-gems'
 brew 'node-build'
-brew 'nodenv'
+
 brew 'mint'
-brew 'swiftgen'
-brew 'swiftformat'
+
 brew 'z'
-brew 'git-lfs'
-brew 'carthage'
-brew 'ffmpeg'
-brew 'imagemagick'
+brew 'fzy'
+
 brew 'gh'
 brew 'aria2'
 
 brew 'xcodes'
+brew 'mas'
+
+# Casks
+cask 'tuxera-ntfs'
+cask 'the-unarchiver'
+
+cask 'font-fira-code'
+
+cask '1password'
 
 cask 'firefox'
 cask 'google-chrome'
-cask 'brave-browser'
-cask 'sketch'
-cask 'figma'
+
+cask 'fork'
+cask 'visual-studio-code'
+
 cask 'iterm2'
 cask 'macdown'
-cask 'font-fira-code'
+
 cask 'vlc'
-cask 'spotify'
-cask 'visual-studio-code'
-cask 'sourcetree'
-cask '1password-cli'
-cask 'zoom'
-cask 'tuxera-ntfs'
+cask 'iina'
+
 cask 'toggl-track'
+
 cask 'telegram'
 cask 'signal'
-cask 'iina'
 cask 'slack'
 cask 'discord'
+cask 'zoom'
 
-mas '1Password', id: 1333542190
-mas 'The Unarchiver', id: 425424353
-mas 'Boop', id: 1518425043
-mas 'Apple Developer', id: 640199958
-mas 'Affinity Photo', id: 824183456
-mas 'Affinity Designer', id: 824171161
+cask 'affinity-photo'
+cask 'affinity-designer'
+cask 'sketch'
+cask 'figma'
+
+cask 'devtoys'
