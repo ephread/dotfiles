@@ -1,12 +1,6 @@
 # Dot Files
 Dot files used across all my macOS installs. They're expected to be installed through [strap](https://github.com/MikeMcQuaid/strap).
 
-On Apple Silicon, run strap through `arch`:
-
-```
-$ /usr/bin/arch -x86_64 /bin/bash -c strap.sh
-```
-
 # Configuration
 
 - `KEEP_XCODE_PREFERENCES=YES` prevents strap from overidding the preexisting Xcode preferences.
