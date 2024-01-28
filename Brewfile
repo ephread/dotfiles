@@ -1,7 +1,6 @@
 # Setup
 tap 'homebrew/cask-fonts'
 tap 'homebrew/bundle'
-tap 'homebrew/core'
 tap 'homebrew/services'
 tap 'robotsandpencils/made'
 
@@ -52,8 +51,6 @@ cask 'macdown'
 
 cask 'vlc'
 cask 'iina'
-
-cask 'toggl-track'
 
 cask 'telegram'
 cask 'signal'
