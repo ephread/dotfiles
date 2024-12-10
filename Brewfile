@@ -13,16 +13,15 @@ brew 'pkg-config'
 brew 'imagemagick'
 brew 'ffmpeg'
 
-brew 'rbenv'
-brew 'nodenv'
-brew 'pyenv'
-
-brew 'ruby-build'
-brew 'rbenv-default-gems'
-brew 'node-build'
+brew 'coreutils'
+brew 'curl'
+brew 'git'
+brew 'asdf'
 
 brew 'mint'
 
+brew 'starship'
+brew 'antidote'
 brew 'z'
 brew 'fzy'
 

@@ -1,0 +1,105 @@
+# Get editor completions based on the config schema
+"$schema" = 'https://starship.rs/config-schema.json'
+
+format = """
+$username\
+$hostname\
+$directory\
+$git_branch\
+$git_commit\
+$git_state\
+$git_metrics\
+$git_status\
+$custom\
+$sudo\
+$cmd_duration\
+$line_break\
+$jobs\
+$battery\
+$character"""
+
+# move the rest of the prompt to the right
+right_format = """
+$package\
+$java\
+$kotlin\
+$gradle\
+$golang\
+$nodejs\
+$python\
+$ruby\
+$swift\
+$direnv\
+"""
+
+[directory]
+fish_style_pwd_dir_length = 3
+
+[git_branch]
+symbol = '󰘬 '
+
+[git_commit]
+tag_disabled = false
+tag_symbol = ' • '
+
+[git_status]
+
+ahead = '[↑](bold green)'
+behind = '[↓](bold red)'
+deleted = '[×](bold red)'
+diverged = '[↑](bold green)[↓](bold red)'
+untracked = '[?](bold red)'
+stashed = '[≡](bold yellow)'
+modified = '[!](bold yellow)'
+staged = '[+](bold green)'
+renamed = '[»](bold green)'
+
+format = '((($ahead_behind)(\($conflicted$deleted$renamed$modified$typechanged$staged$untracked\))($stashed)) )'
+
+[ruby]
+symbol = '󰴭'
+style = 'bold red'
+version_format = '${raw}'
+format = '[\[$symbol $version\]]($style) '
+
+[nodejs]
+symbol = ''
+style = 'bold green'
+version_format = '${raw}'
+format = '[\[$symbol $version\]]($style) '
+
+[package]
+symbol = '󰏗'
+style = 'bold yellow'
+version_format = '${raw}'
+format = '[\[$symbol $version\]]($style) '
+
+[golang]
+symbol = ''
+style = 'bold cyan'
+version_format = '${raw}'
+format = '[\[$symbol $version\]]($style) '
+
+[python]
+symbol = '󰌠'
+style = 'bold blue'
+version_format = '${raw}'
+format = '[\[$symbol $version\]]($style) '
+
+[swift]
+symbol = '󰛥'
+style = 'bold yellow'
+version_format = '${raw}'
+format = '[\[$symbol $version\]]($style) '
+
+[java]
+symbol = ''
+style = 'bold blue'
+version_format = '${raw}'
+format = '[\[$symbol $version\]]($style) '
+
+[kotlin]
+symbol = '󱈙'
+style = 'bold purple'
+version_format = '${raw}'
+format = '[\[$symbol $version\]]($style) '
