@@ -32,6 +32,8 @@ $swift\
 $direnv\
 """
 
+command_timeout = 1000
+
 [directory]
 fish_style_pwd_dir_length = 3
 
@@ -55,6 +57,17 @@ staged = '[+](bold green)'
 renamed = '[»](bold green)'
 
 format = '((($ahead_behind)(\($conflicted$deleted$renamed$modified$typechanged$staged$untracked\))($stashed)) )'
+
+[direnv]
+symbol = '󱁿'
+allowed_msg = '✓'
+not_allowed_msg = '!'
+denied_msg = '✗'
+loaded_msg = '✓'
+unloaded_msg = '-'
+format = '[\[$symbol $loaded/$allowed\]](bold) '
+disabled = false
+
 
 [ruby]
 symbol = '󰴭'

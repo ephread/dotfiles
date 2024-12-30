@@ -32,6 +32,8 @@ brew 'xcodes'
 brew 'mas'
 
 # Casks
+cask 'gpg-suite-no-mail'
+
 cask 'tuxera-ntfs'
 cask 'the-unarchiver'
 

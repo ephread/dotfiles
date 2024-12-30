@@ -1,0 +1,98 @@
+
+# ###### JIRA ##################################################################
+
+_default_jira() {
+    command jira "$@"
+}
+
+_jira_show_current() {
+    issue_list=($(git rev-parse --abbrev-ref HEAD | grep -o 'CR-[0-9]\{1,\}'))
+
+    for issue_key in "${issue_list[@]}"; do
+        command jira issue view --plain "$issue_key"
+    done
+}
+
+_jira_show_mine() {
+    command jira sprint list \
+                 --current  -a$(command jira me) \
+                 --order-by "status"  --reverse "$@"
+}
+
+_jira_issue_start() {
+    sprint_id=$(
+        command jira sprint list \
+                     --plain --table --no-headers \
+                     --columns="ID" --state=active
+    )
+
+    command jira sprint add "$sprint_id" "$@"
+}
+
+_jira_issue_new() {
+    command jira issue create -a$(command jira me) "$@"
+
+    me=$(jira me)
+    issue_key=$(
+        command jira issue list \
+                     -a"$me" --paginate=0:1 \
+                     --plain --no-headers \
+                     --order-by="CREATED" \
+                     --columns="KEY"
+    )
+
+    _jira_issue_start "$issue_key"
+}
+
+jira() {
+    args=("$@")
+    case $1 in
+        mine)
+            shift
+            _jira_show_mine "${args[@]}"
+            ;;
+        issue)
+            shift
+            case $1 in
+                new)
+                    shift
+                    _jira_issue_new "$@"
+                    ;;
+                start)
+                    shift
+                    _jira_issue_start "$@"
+                    ;;
+                show)
+                    shift
+                    _jira_show_current "${args[@]}"
+                    ;;
+                *)
+                    _default_jira "${args[@]}"
+                    ;;
+            esac
+            ;;
+        sprint)
+            shift
+            case $1 in
+                list)
+                    shift
+                    case $1 in
+                        mine)
+                            shift
+                            _jira_show_mine "$@"
+                            ;;
+                        *)
+                            _default_jira "${args[@]}"
+                            ;;
+                    esac
+                    ;;
+                *)
+                    _default_jira "${args[@]}"
+                    ;;
+            esac
+            ;;
+        *)
+            _default_jira "${args[@]}"
+            ;;
+    esac
+}

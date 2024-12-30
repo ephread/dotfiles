@@ -1,6 +1,7 @@
 [user]
-    name = Frédéric Maquin
-    email = fred@ephread.com
+	name = Frédéric Maquin
+	email = fred.maquin@craveretail.com
+	signingkey = 73797B26F71F847B
 
 [color]
     ui = auto
@@ -35,6 +36,7 @@
     done = !git push origin HEAD
 
     fixup = !git log --oneline --decorate @{u} | fzy | awk '{ print $1 }' | xargs -I{} git commit --fixup={}
+    melissa = push origin
 
 [branch]
     autosetuprebase = always
@@ -73,3 +75,5 @@
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process
 	required = true
+[pull]
+	rebase = true
