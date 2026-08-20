@@ -8,7 +8,7 @@
 
 [core]
     editor = vim
-    excludesfile = ~/.gitignore
+	excludesFile = ~/.gitignore
 
 [alias]
     # Unstage the changes in a given file.
@@ -24,6 +24,8 @@
     lold = log --graph --pretty=format:\"%C(auto)%h%d%Creset %C(cyan)(%ci)%Creset %C(green)%cn <%ce>%Creset %s\"
     lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
 
+    pom = pull origin main
+
     st = status
     df = diff
     co = checkout
@@ -36,7 +38,34 @@
     done = !git push origin HEAD
 
     fixup = !git log --oneline --decorate @{u} | fzy | awk '{ print $1 }' | xargs -I{} git commit --fixup={}
-    melissa = push origin
+
+    snr = "!f() { \
+        b=$(git rev-parse --abbrev-ref HEAD) && \
+        git checkout main && \
+        git pull && \
+        git checkout \"$b\" \
+        && git rebase main; \
+    }; f"
+
+    pm = "!f() { \
+        b=$(git rev-parse --abbrev-ref HEAD) && \
+        git checkout main && \
+        git pull && \
+        git checkout \"$b\"; \
+    }; f"
+
+    rnr = "!f() { \
+        msg=$(git log -1 --pretty=%B) && \
+        echo \"$msg\" > .git/.last_commit_msg && \
+        git reset --soft HEAD~1 && \
+        git stash save && \
+        git pm && \
+        git reset main --hard && \
+        git stash pop && \
+	git add . && \
+        git commit -m \"$msg\"; \
+    }; f"
+	fd = "!f() { \\\n  remote_head=$(git symbolic-ref refs/remotes/origin/HEAD --short 2>/dev/null); \\\n  if [ -z \"$remote_head\" ]; then \\\n    echo \"Updating remote HEAD...\"; \\\n    git remote set-head origin --auto; \\\n    remote_head=$(git symbolic-ref refs/remotes/origin/HEAD --short); \\\n  fi; \\\n  default_branch=${remote_head#origin/}; \\\n  echo \"Fetching origin/$default_branch into local $default_branch...\"; \\\n  git fetch origin \"$default_branch:$default_branch\"; \\\n}; f"
 
 [branch]
     autosetuprebase = always

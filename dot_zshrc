@@ -38,6 +38,13 @@ bindkey '^[[1;3C' forward-word
 bindkey "^[[H" beginning-of-line
 bindkey "^[[F" end-of-line
 
+# Increase history sizes in memory and file
+export HISTSIZE=50000
+export SAVEHIST=50000
+
+# Share history across all active tabs and write immediately
+setopt SHARE_HISTORY
+
 # Homebrew
 
 eval $(/opt/homebrew/bin/brew shellenv)
@@ -46,19 +53,11 @@ eval $(/opt/homebrew/bin/brew shellenv)
 eval "$(starship init zsh)"
 export STARSHIP_CONFIG=~/.starship.toml
 
-# direnv
-
-eval "$(direnv hook zsh)"
+# mise
+eval "$(mise activate zsh)"
 
 # asdf
-source "$(brew --prefix asdf)/libexec/asdf.sh"
-source "$HOME/.asdf/plugins/golang/set-env.zsh"
-
-# Android Stuff
-
-#export android-studio="open -a /Applications/Android\ Studio.app"
-#export JAVA_HOME="/Applications/Android Studio.app/Contents/jre/Contents/Home"
-#export ANDROID_SDK_ROOT="$HOME/Library/Android/sdk"
+# export PATH="${ASDF_DATA_DIR:-$HOME/.asdf}/shims:$PATH"
 
 # PATHs
 export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"
@@ -67,13 +66,26 @@ export PATH="$HOME/.local/bin:$PATH"
 # GPG
 export GPG_TTY=$(tty)
 
-
-# Z & Antidote
-source "$(brew --prefix)/etc/profile.d/z.sh"
+# Antidote
 source "$(brew --prefix antidote)/share/antidote/antidote.zsh"
 antidote load ${ZDOTDIR:-$HOME}/.zsh_plugins.txt
 
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='underline,memo=zsh-autosuggestions-test'
 
 # ZSH Aliases
-source $HOME/.zsh_aliases
+export PATH="/opt/bin:$PATH"
+
+# Added by LM Studio CLI (lms)
+export PATH="$PATH:/Users/fred/.lmstudio/bin"
+# End of LM Studio CLI section
+
+function update_terminal_title() {
+  local title="${TTY_TAB_LABEL:-${PWD:t}}"
+  print -Pn "\e]2;${title}\a"
+}
+
+autoload -Uz add-zsh-hook
+add-zsh-hook precmd update_terminal_title
+
+eval "$(atuin init zsh)"
+eval "$(zoxide init zsh)"

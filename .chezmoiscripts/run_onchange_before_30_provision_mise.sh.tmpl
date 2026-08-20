@@ -1,0 +1,15 @@
+#!/bin/sh
+# {{ include "private_dot_config/private_mise/config.toml" | sha256sum }}
+set -eu
+
+if ! command -v mise >/dev/null 2>&1; then
+  echo "mise must be installed by the pre-Xcode Homebrew phase." >&2
+  exit 1
+fi
+
+# Install every tool declared in the managed global mise configuration, then
+# install gems with its newest Ruby explicitly.
+MISE_GLOBAL_CONFIG_FILE={{ joinPath .chezmoi.sourceDir "private_dot_config/private_mise/config.toml" | quote }} mise install
+# Use the gem command belonging to mise's Ruby, rather than the system Ruby's
+# `gem` executable that may appear earlier in PATH.
+mise exec ruby@latest -- ruby -S gem install bundler

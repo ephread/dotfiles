@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+
+# Seed the Xcode preference domain once. Future chezmoi applies leave any
+# preferences changed in Xcode untouched.
+/usr/bin/defaults import com.apple.dt.Xcode {{ joinPath .chezmoi.sourceDir "assets/xcode/com.apple.dt.Xcode.plist" | quote }}

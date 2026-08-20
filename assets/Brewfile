@@ -1,0 +1,71 @@
+# `brew bundle` evaluates Brewfiles as Ruby. The chezmoi bootstrap scripts set
+# DOTFILES_BUNDLE_PHASE to install only the packages appropriate to that phase.
+# Running this file directly without that variable installs every phase.
+
+phase = ENV.fetch("DOTFILES_BUNDLE_PHASE", "all")
+install_pre = ["pre", "all"].include?(phase)
+install_post = ["post", "all"].include?(phase)
+
+# xcodes is a signed release binary and can bootstrap a Mac before Xcode exists.
+if install_pre
+    tap 'xcodesorg/made'
+    brew 'xcodesorg/made/xcodes'
+end
+
+# Every remaining package is installed only after the mainline Xcode release.
+if install_post
+    brew 'git'
+    brew 'git-lfs'
+
+    brew 'openssl@3'
+    brew 'pkgconf'
+
+    brew 'imagemagick'
+    brew 'ffmpeg'
+
+    brew 'coreutils'
+    brew 'curl'
+    brew 'mise'
+
+    brew 'starship'
+    brew 'antidote'
+    brew 'fzy'
+
+    brew 'gh'
+    brew 'aria2'
+
+    brew 'mas'
+
+    # Casks
+    cask 'gpg-suite-no-mail'
+
+    cask 'tuxera-ntfs'
+    cask 'the-unarchiver'
+
+    cask 'font-fira-code'
+
+    cask '1password'
+
+    cask 'firefox'
+    cask 'google-chrome'
+
+    cask 'fork'
+    cask 'visual-studio-code'
+
+    cask 'vlc'
+    cask 'iina'
+
+    cask 'telegram'
+    cask 'signal'
+    cask 'slack'
+    cask 'discord'
+    cask 'zoom'
+
+    cask 'sketch'
+    cask 'figma'
+
+    cask 'devtoys'
+
+    # Mint installs and runs Swift packages and therefore requires Xcode.
+    brew 'mint'
+end

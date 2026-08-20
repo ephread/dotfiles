@@ -1,0 +1,10 @@
+#!/bin/sh
+# {{ include "assets/Brewfile" | sha256sum }}
+set -eu
+
+if ! command -v brew >/dev/null 2>&1; then
+  echo "Homebrew is required to install the packages in assets/Brewfile." >&2
+  exit 1
+fi
+
+DOTFILES_BUNDLE_PHASE=post brew bundle --file={{ joinPath .chezmoi.sourceDir "assets/Brewfile" | quote }}

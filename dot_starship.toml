@@ -20,15 +20,14 @@ $character"""
 
 # move the rest of the prompt to the right
 right_format = """
-$package\
-$java\
-$kotlin\
-$gradle\
 $golang\
 $nodejs\
-$python\
 $ruby\
 $swift\
+$python\
+$java\
+${custom.kotlin}\
+$gradle\
 $direnv\
 """
 
@@ -71,13 +70,13 @@ disabled = false
 
 [ruby]
 symbol = '󰴭'
-style = 'bold red'
+style = 'bold #cc342d'
 version_format = '${raw}'
 format = '[\[$symbol $version\]]($style) '
 
 [nodejs]
 symbol = ''
-style = 'bold green'
+style = 'bold #339933'
 version_format = '${raw}'
 format = '[\[$symbol $version\]]($style) '
 
@@ -89,13 +88,23 @@ format = '[\[$symbol $version\]]($style) '
 
 [golang]
 symbol = ''
-style = 'bold cyan'
+style = 'bold #00ADD8'
 version_format = '${raw}'
 format = '[\[$symbol $version\]]($style) '
+detect_files = [
+    'go.mod',
+    'go.sum',
+    'go.work',
+    'glide.yaml',
+    'Gopkg.yml',
+    'Gopkg.lock',
+    '.go-version',
+    # 'bitrise.yml',
+]
 
 [python]
 symbol = '󰌠'
-style = 'bold blue'
+style = 'bold #4584b6'
 version_format = '${raw}'
 format = '[\[$symbol $version\]]($style) '
 
@@ -107,12 +116,19 @@ format = '[\[$symbol $version\]]($style) '
 
 [java]
 symbol = ''
-style = 'bold blue'
+style = 'bold #ED8B00'
 version_format = '${raw}'
-format = '[\[$symbol $version\]]($style) '
+format = '| [\[$symbol $version\]]($style) '
 
-[kotlin]
-symbol = '󱈙'
-style = 'bold purple'
+[custom.kotlin]
+symbol = ''
+style = 'bold #936ff7'
+command = '''sed -n 's/^kotlin *= *"\([^"]*\)".*/\1/p' gradle/libs.versions.toml'''
+when = '''test -f gradle/libs.versions.toml'''
+format = '[\[$symbol $output\]]($style) '
+
+[gradle]
+symbol = ''
+style = 'bold #06A0CE'
 version_format = '${raw}'
-format = '[\[$symbol $version\]]($style) '
+format = 'via [\[$symbol $version\]]($style) '

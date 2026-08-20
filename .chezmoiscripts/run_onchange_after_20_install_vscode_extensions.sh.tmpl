@@ -1,0 +1,13 @@
+#!/bin/sh
+# {{ include "assets/vscode/extensions" | sha256sum }}
+set -eu
+
+if ! command -v code >/dev/null 2>&1; then
+  echo "VS Code's 'code' command is unavailable; skipping extension installation." >&2
+  exit 0
+fi
+
+while IFS= read -r extension; do
+  [ -z "$extension" ] && continue
+  code --install-extension "$extension" --force
+done < {{ joinPath .chezmoi.sourceDir "assets/vscode/extensions" | quote }}
