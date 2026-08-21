@@ -1,14 +1,15 @@
 [user]
-	name = Frédéric Maquin
-	email = fred.maquin@craveretail.com
-	signingkey = 73797B26F71F847B
+    name = Frédéric Maquin
+    email = fred.maquin@craveretail.com
+    signingkey = 73797B26F71F847B
 
 [color]
     ui = auto
 
 [core]
     editor = vim
-	excludesFile = ~/.gitignore
+    excludesFile = ~/.gitignore
+    pager = delta
 
 [alias]
     # Unstage the changes in a given file.
@@ -77,32 +78,35 @@
     cmd = code --wait --diff $LOCAL $REMOTE
 
 [merge]
-    # Use the OS X graphical three-way merge tool for graphical merges.
-    tool = code
-
-[mergetool "code"]
-    cmd = code --wait --merge $REMOTE $LOCAL $BASE $MERGED
-    # Don't prompt before opening the merge tool.
-    prompt = false
-    # Don't keep backups of the merge tool inputs.
-    keepBackup = false
-    # Don't keep the merge tool temporary input/output files.
-    keepTemporaries = false
+    conflictStyle = zdiff3
 
 [github]
     user = ephread
+
 [push]
     default = simple
+
 [credential]
     helper = osxkeychain
+
 [init]
     defaultBranch = main
+
 [commit]
-	gpgsign = true
+    gpgsign = true
+
 [filter "lfs"]
-	clean = git-lfs clean -- %f
-	smudge = git-lfs smudge -- %f
-	process = git-lfs filter-process
-	required = true
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
+    process = git-lfs filter-process
+    required = true
+
 [pull]
-	rebase = true
+    rebase = true
+
+[interactive]
+    diffFilter = delta --color-only
+
+[delta]
+    navigate = true  # use n and N to move between diff sections
+    line-numbers = true

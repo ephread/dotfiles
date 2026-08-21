@@ -8,8 +8,24 @@ if ! command -v mise >/dev/null 2>&1; then
 fi
 
 # Install every tool declared in the managed global mise configuration, then
-# install gems with its newest Ruby explicitly.
+# activate those tools globally. `mise install` alone only downloads versions;
+# `mise use --global` writes them to ~/.config/mise/config.toml so they are
+# available by default in every shell.
 MISE_GLOBAL_CONFIG_FILE={{ joinPath .chezmoi.sourceDir "private_dot_config/private_mise/config.toml" | quote }} mise install
+mise use --global \
+  ruby@latest \
+  node@latest \
+  atuin@latest \
+  zoxide@latest \
+  fzf@latest \
+  ripgrep@latest \
+  fd@latest \
+  bat@latest \
+  eza@latest \
+  jq@latest \
+  yq@latest \
+  delta@latest \
+  lazygit@latest
 # Use the gem command belonging to mise's Ruby, rather than the system Ruby's
 # `gem` executable that may appear earlier in PATH.
 mise exec ruby@latest -- ruby -S gem install bundler

@@ -1,0 +1,63 @@
+" Display syntax-aware colors when Vim has a matching syntax definition.
+syntax enable
+
+" Match Vim's colorscheme to the macOS appearance, including after an appearance
+" change while Vim is open.  The built-in quiet scheme supports both backgrounds.
+function! s:set_appearance_colorscheme() abort
+  if has('macunix')
+    let l:background = system('defaults read -g AppleInterfaceStyle 2>/dev/null') =~# 'Dark'
+          \ ? 'dark' : 'light'
+    if &background !=# l:background || get(g:, 'colors_name', '') !=# 'quiet'
+      let &background = l:background
+      colorscheme quiet
+    endif
+  endif
+endfunction
+
+call s:set_appearance_colorscheme()
+autocmd FocusGained * call <SID>set_appearance_colorscheme()
+
+" Mark preferred maximum line widths.
+set colorcolumn=80,100,120
+
+" Detect file types and enable their matching plugins and indentation rules.
+filetype plugin indent on
+
+" Keep modified buffers open when switching files, reload externally changed files,
+" and preserve undo history across Vim sessions.
+set hidden
+set autoread
+set undofile
+
+" Use four spaces for indentation and make Backspace behave naturally.
+set expandtab
+set shiftwidth=4
+set tabstop=4
+set smartindent
+set backspace=indent,eol,start
+
+" Show conventional absolute line numbers and highlight the current line.
+set number
+set cursorline
+set scrolloff=5
+set signcolumn=yes
+
+" Search as you type, ignoring case unless the search contains capital letters.
+set ignorecase
+set smartcase
+set incsearch
+set hlsearch
+
+" Put new splits in predictable places.
+set splitbelow
+set splitright
+
+" Enable mouse support and use the macOS system clipboard.
+set mouse=a
+set clipboard=unnamed
+
+" Keep long lines on one screen line while editing code.
+set nowrap
+
+" Wrap Git commit messages at the conventional width and check their spelling.
+autocmd FileType gitcommit setlocal spell textwidth=72
