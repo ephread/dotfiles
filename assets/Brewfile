@@ -6,11 +6,11 @@ phase = ENV.fetch("DOTFILES_BUNDLE_PHASE", "all")
 install_pre = ["pre", "all"].include?(phase)
 install_post = ["post", "all"].include?(phase)
 
-# xcodes is a signed release binary and can bootstrap a Mac before Xcode exists.
-if install_pre
-    tap 'xcodesorg/made'
-    brew 'xcodesorg/made/xcodes'
-end
+# # xcodes is a signed release binary and can bootstrap a Mac before Xcode exists.
+# if install_pre
+#     tap 'xcodesorg/made'
+#     brew 'xcodesorg/made/xcodes'
+# end
 
 # Every remaining package is installed only after the mainline Xcode release.
 if install_post

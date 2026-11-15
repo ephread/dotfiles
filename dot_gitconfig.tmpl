@@ -1,7 +1,12 @@
 [user]
     name = Frédéric Maquin
+{{- if .work }}
     email = fred.maquin@craveretail.com
     signingkey = 73797B26F71F847B
+{{- else }}
+    email = fred@ephread.com
+    signingkey = 09D426D76FF93662
+{{- end }}
 
 [color]
     ui = auto
