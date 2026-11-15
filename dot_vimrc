@@ -1,21 +1,12 @@
 " Display syntax-aware colors when Vim has a matching syntax definition.
 syntax enable
 
-" Match Vim's colorscheme to the macOS appearance, including after an appearance
-" change while Vim is open.  The built-in quiet scheme supports both backgrounds.
-function! s:set_appearance_colorscheme() abort
-  if has('macunix')
-    let l:background = system('defaults read -g AppleInterfaceStyle 2>/dev/null') =~# 'Dark'
-          \ ? 'dark' : 'light'
-    if &background !=# l:background || get(g:, 'colors_name', '') !=# 'quiet'
-      let &background = l:background
-      colorscheme quiet
-    endif
-  endif
-endfunction
-
-call s:set_appearance_colorscheme()
-autocmd FocusGained * call <SID>set_appearance_colorscheme()
+" Keep Vim's foreground, background, and ANSI colors under Ghostty's control.
+" The default scheme leaves the Normal highlight unset, while regular terminal
+" colors use Ghostty's palette.  Do not enable truecolor here: it would replace
+" those palette colors with Vim's fixed RGB equivalents.
+set notermguicolors
+colorscheme default
 
 " Mark preferred maximum line widths.
 set colorcolumn=80,100,120

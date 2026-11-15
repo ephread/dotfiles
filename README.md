@@ -28,7 +28,11 @@ changes and are skipped when `code` is unavailable.
 
 The Xcode phase selects the freshly installed Xcode for command-line tools,
 runs Xcode's first-launch setup, and accepts the developer license; it prompts
-for Apple ID credentials and administrator access when needed.
+for Apple ID credentials and administrator access when needed. The one-time
+macOS setup defers FileVault enablement to the next login. Once macOS generates
+the personal recovery key, it is stored in the `Personal` 1Password vault and
+the temporary local plist is removed. This requires 1Password to be signed in
+and unlocked after that login.
 
 ## Layout
 

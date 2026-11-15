@@ -1,0 +1,4 @@
+[".shell/functions/lazyworktree.zsh"]
+    type = "file"
+    url = "https://raw.githubusercontent.com/chmouel/lazyworktree/refs/heads/main/shell/functions.zsh"
+    refreshPeriod = "168h"

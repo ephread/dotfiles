@@ -1,5 +1,43 @@
+# Environment and paths
 
-# ZSH Sanity
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
+# Keep PATH entries unique, with custom commands ahead of system commands.
+typeset -U PATH path
+path=(
+  /opt/bin
+  "$HOME/.local/bin"
+  "$HOMEBREW_PREFIX/opt/gnu-getopt/bin"
+  $path
+  "$HOME/.lmstudio/bin"
+)
+export PATH
+
+export GPG_TTY="$(tty)"
+
+dev_caches() {
+  local cache_root="/Volumes/Data SSD/Caches"
+
+  if [[ -d "$cache_root" && -w "$cache_root" ]]; then
+    export GRADLE_USER_HOME="$cache_root/gradle"
+    export npm_config_cache="$cache_root/npm"
+    export PLAYWRIGHT_BROWSERS_PATH="$cache_root/playwright"
+    export CYPRESS_CACHE_FOLDER="$cache_root/cypress"
+    export HOMEBREW_CACHE="$cache_root/homebrew"
+  else
+    export GRADLE_USER_HOME="$HOME/.gradle"
+    export npm_config_cache="$HOME/.npm"
+    export PLAYWRIGHT_BROWSERS_PATH="$HOME/Library/Caches/ms-playwright"
+    export CYPRESS_CACHE_FOLDER="$HOME/Library/Caches/Cypress"
+    export HOMEBREW_CACHE="$HOME/Library/Caches/Homebrew"
+  fi
+
+  mkdir -p "$CYPRESS_CACHE_FOLDER"
+}
+
+dev_caches
+
+# Shell behavior and history
 
 # no c-s/c-q output freezing
 setopt noflowcontrol
@@ -15,77 +53,67 @@ setopt longlistjobs
 setopt nonomatch
 # report the status of backgrounds jobs immediately
 setopt notify
-# whenever a command completion is attempted, make sure the entire command path
-# is hashed first.
-setopt hash_list_all
-# not just at the end
-setopt completeinword
 # use zsh style word splitting
 setopt noshwordsplit
 # allow use of comments in interactive code
 setopt interactivecomments
-
-# ZSH Configuration
-
-autoload -U compinit && compinit
-zmodload -i zsh/complist
-
-zstyle ':completion:*' menu select
-
-bindkey -M menuselect '^[[Z' reverse-menu-complete
-bindkey '^[[1;3D' backward-word
-bindkey '^[[1;3C' forward-word
-bindkey "^[[H" beginning-of-line
-bindkey "^[[F" end-of-line
 
 # Increase history sizes in memory and file
 export HISTSIZE=50000
 export SAVEHIST=50000
 
 # Share history across all active tabs and write immediately
-setopt SHARE_HISTORY
+setopt share_history
 
-# Homebrew
+# Completions
 
-eval $(/opt/homebrew/bin/brew shellenv)
+# Hash the entire command path before attempting completion.
+setopt hash_list_all
+# Complete at the cursor, including within a word.
+setopt completeinword
 
-# Starship
-eval "$(starship init zsh)"
-export STARSHIP_CONFIG=~/.starship.toml
+autoload -U compinit && compinit
+zmodload -i zsh/complist
 
-# mise
-eval "$(mise activate zsh)"
+zstyle ':completion:*' menu select
 
-# asdf
-# export PATH="${ASDF_DATA_DIR:-$HOME/.asdf}/shims:$PATH"
+# Plugins
 
-# PATHs
-export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"
-export PATH="$HOME/.local/bin:$PATH"
-
-# GPG
-export GPG_TTY=$(tty)
-
-# Antidote
 source "$(brew --prefix antidote)/share/antidote/antidote.zsh"
-antidote load ${ZDOTDIR:-$HOME}/.zsh_plugins.txt
+antidote load "${ZDOTDIR:-$HOME}/.zsh_plugins.txt"
 
-ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='underline,memo=zsh-autosuggestions-test'
+# Tool integrations
 
-# ZSH Aliases
-export PATH="/opt/bin:$PATH"
+eval "$(mise activate zsh)"
+eval "$(atuin init zsh)"
+eval "$(zoxide init zsh)"
 
-# Added by LM Studio CLI (lms)
-export PATH="$PATH:/Users/fred/.lmstudio/bin"
-# End of LM Studio CLI section
+# Functions and keybindings
 
-function update_terminal_title() {
+# Chezmoi-managed external shell extensions.
+for extension in "$HOME"/.shell/functions/*.zsh(N); do
+  source "$extension"
+done
+
+jt() {
+  worktree_jump "$(git rev-parse --show-toplevel)" "$@"
+}
+
+bindkey -M menuselect '^[[Z' reverse-menu-complete
+bindkey '^[[1;3D' backward-word
+bindkey '^[[1;3C' forward-word
+bindkey '^[[H' beginning-of-line
+bindkey '^[[F' end-of-line
+
+# Prompt and terminal title
+
+export STARSHIP_CONFIG="$HOME/.starship.toml"
+eval "$(starship init zsh)"
+
+update_terminal_title() {
   local title="${TTY_TAB_LABEL:-${PWD:t}}"
   print -Pn "\e]2;${title}\a"
 }
 
 autoload -Uz add-zsh-hook
 add-zsh-hook precmd update_terminal_title
-
-eval "$(atuin init zsh)"
-eval "$(zoxide init zsh)"

@@ -2,9 +2,18 @@
 # {{ include "assets/Brewfile" | sha256sum }}
 set -eu
 
-if ! command -v brew >/dev/null 2>&1; then
+if [ -x /opt/homebrew/bin/brew ]; then
+  # See the matching pre-bootstrap script for why this is explicitly ARM.
+  brew_bundle() {
+    /usr/bin/arch -arm64 /opt/homebrew/bin/brew bundle "$@"
+  }
+elif command -v brew >/dev/null 2>&1; then
+  brew_bundle() {
+    brew bundle "$@"
+  }
+else
   echo "Homebrew is required to install the packages in assets/Brewfile." >&2
   exit 1
 fi
 
-DOTFILES_BUNDLE_PHASE=post brew bundle --file={{ joinPath .chezmoi.sourceDir "assets/Brewfile" | quote }}
+DOTFILES_BUNDLE_PHASE=post brew_bundle --file={{ joinPath .chezmoi.sourceDir "assets/Brewfile" | quote }}

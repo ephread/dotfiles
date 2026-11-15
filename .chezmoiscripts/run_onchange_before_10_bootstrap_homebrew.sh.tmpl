@@ -2,9 +2,20 @@
 # {{ include "assets/Brewfile" | sha256sum }}
 set -eu
 
-if ! command -v brew >/dev/null 2>&1; then
+if [ -x /opt/homebrew/bin/brew ]; then
+  # chezmoi may have been launched by an Intel/Rosetta process (for example,
+  # an Intel build of a terminal or editor).  ARM Homebrew refuses that
+  # process architecture, so always invoke its native executable as ARM.
+  brew_bundle() {
+    /usr/bin/arch -arm64 /opt/homebrew/bin/brew bundle "$@"
+  }
+elif command -v brew >/dev/null 2>&1; then
+  brew_bundle() {
+    brew bundle "$@"
+  }
+else
   echo "Homebrew is required to install the packages in assets/Brewfile." >&2
   exit 1
 fi
 
-DOTFILES_BUNDLE_PHASE=pre brew bundle --file={{ joinPath .chezmoi.sourceDir "assets/Brewfile" | quote }}
+DOTFILES_BUNDLE_PHASE=pre brew_bundle --file={{ joinPath .chezmoi.sourceDir "assets/Brewfile" | quote }}
