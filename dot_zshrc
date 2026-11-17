@@ -117,3 +117,4 @@ update_terminal_title() {
 
 autoload -Uz add-zsh-hook
 add-zsh-hook precmd update_terminal_title
+
