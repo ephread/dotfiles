@@ -6,9 +6,12 @@ import { MOTION, planMotion, flying } from "./motion.js";
 import { stop } from "./focus.js";
 import { inboxTop } from "./filter.js";
 import { FIRST, MORE } from "./row-model.js";
+import { sidebarWidth, RAIL } from "./sidebar.js";
 
 // T3's slim rows and Show more (h-9) and its shelves' headers (h-8), logical px.
 export const SLIM = 36, SHELF = 32;
+// Each shelf's icon (in icons/), by its header's id.
+const SHELF_ICON = { "working-header": "state-working", "snoozed-header": "alarm-clock", "settled-header": "archive" };
 // T3's list: 1px between its items (gap-px), a card's item adding 2 above and below (py-0.5); 8 in, and a card's 2 more at the top.
 export const STACK = 1, CARD_GAP = 5, LIST_TOP = 8;
 
@@ -25,7 +28,7 @@ export function inboxList(view, t, model, actions, drag, draw, cx) {
   // As T3's: 2px in from the rows' edges, the count in normal weight.
   const shelf = (id, label, count, open, toggle, extra) => stop(view, t, id, h_flex().id(id).h(SHELF).mx(2).px(8).gap(8).flex_none().items_center()
     .text_size(12).font_medium().text_color(t.dim)
-    .role("button").accessibility_label(`${open ? "Hide" : "Show"} ${label.toLowerCase()} agents`)
+    .role("button").accessibility_label(`${open ? "Hide" : "Show"} ${label.toLowerCase()} agents`).tooltip(`${label} · ${count}`)
     .on_hover((on, cx) => {
       if (on) view.overShelf = id;
       else if (view.overShelf === id) view.overShelf = null;
@@ -35,13 +38,15 @@ export function inboxList(view, t, model, actions, drag, draw, cx) {
       toggle();
       cx.notify();
     })
-    // Local change: shrinking, the label ellipsizes; on the rail (under 160) only the count stays, centred.
-    .when((view.width ?? Infinity) >= 160, (el) => el.child(div().flex_1().min_w(0).truncate().child(label))
+    // Local change: the shelf's icon, as the Agents list's group marks (Working: pulse, Snoozed: alarm clock, Settled: archive).
+    .child(svg(`mods/t3-inbox/icons/${SHELF_ICON[id] ?? "archive"}.svg`).size(13).flex_none().text_color(id === "working-header" ? t.working : t.dim))
+    // Local change: shrinking, the label ellipsizes; on the rail the icon and count stay, centred.
+    .when(sidebarWidth(view, layout()) >= RAIL, (el) => el.child(div().flex_1().min_w(0).truncate().child(label))
       .when(Boolean(extra), (el) => el.child(extra)))
-    .when((view.width ?? Infinity) < 160, (el) => el.justify_center().px(0))
+    .when(sidebarWidth(view, layout()) < RAIL, (el) => el.justify_center().px(0).gap(3).text_size(11))
     .child(div().flex_none().font_normal().child(String(count)))
         // 12px, as T3's section chevron; -2: its middle under the top row's last button, 22px from the sidebar's edge.
-    .when((view.width ?? Infinity) >= 160, (el) => el.child(svg(`mods/t3-inbox/icons/chevron-${open ? "down" : "right"}.svg`).size(12).mr(-2).flex_none().text_color(view.overShelf === id ? t.foreground : t.dim))));
+    .when(sidebarWidth(view, layout()) >= RAIL, (el) => el.child(svg(`mods/t3-inbox/icons/chevron-${open ? "down" : "right"}.svg`).size(12).mr(-2).flex_none().text_color(view.overShelf === id ? t.foreground : t.dim))));
 
   // The list's motion, as T3's (Sidebar.motion.ts): when the rows' order or sections change, a row that moved slides from
   // where it was, one that's new fades in from 40px above, one that left fades out where it was; 150ms ease-out. Not

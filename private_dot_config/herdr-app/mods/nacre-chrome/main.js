@@ -1,6 +1,6 @@
 import { View, div, image, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, run, props, window, shared, setShared, updates, layout, nextCommand, openOverlay, closeOverlay, focused } from "herdr";
+import { theme, run, props, window, shared, setShared, updates, layout, nextCommand, openOverlay, closeOverlay, focused, settings } from "herdr";
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -11,8 +11,26 @@ function find(node, id) {
   return null;
 }
 
-// The sidebar's rail goes by its width, not a flag: dragging its edge narrows it too.
-const narrow = () => (find(layout(), "sidebar")?.size?.px ?? Infinity) < 160;
+// The sidebar's stages, the same in every Nacre sidebar mod (nacre-chrome, nacre-spaces, nacre-agents, t3-inbox),
+// by the sidebar's width in layout px: Full (>= FULL) everything; Medium (COMPACT..FULL) no secondary labels
+// (the header's "Herdr", the Inbox's state words); Compact (RAIL..COMPACT) one line a row, no times, branch
+// lines or header icons; Rail (< RAIL) icons, disks and counts only.
+const RAIL = 90, COMPACT = 200, FULL = 240; // RAIL: only the collapsed widths (76 on macOS, 44 elsewhere)
+// The rail goes by the width, not a flag: dragging the sidebar's edge narrows it too.
+const narrow = () => (find(layout(), "sidebar")?.size?.px ?? Infinity) < RAIL; // the toggle's decision: the saved size
+// The width as drawn now: the block's measured size, which follows a drag of the sidebar's edge frame by frame
+// (layout()'s px is the saved size and catches up only later); before the first measure, the layout's.
+// Every block in the sidebar is as wide as the sidebar. `measure(el)` goes on the mod's root.
+function liveWidth(view) { return view.measuredW ?? find(layout(), "sidebar")?.size?.px ?? Infinity; }
+function measure(view, el) {
+  return el.on_size_change((size, cx) => {
+    const w = size.width / (Number(settings()?.zoom) || 1);
+    if (Math.round(w) === Math.round(view.measuredW ?? -1)) return;
+    view.measuredW = w;
+    cx.notify();
+  });
+}
+
 
 // To the rail (on macOS wide enough for the traffic lights), or back to the width it had.
 function toggleSidebar() {
@@ -47,7 +65,7 @@ export default class WorkspaceChrome extends View {
   }
   render() {
     const t = theme();
-    const collapsed = narrow();
+    const collapsed = liveWidth(this) < RAIL;
     // The footer's menu, when the rail has room only for the gear.
     if (props()?.footerMenu) {
       const item = (id, icon, label, action) => h_flex().id(id).h(28).px(8).gap(8).items_center().rounded(4).text_size(14)
@@ -64,27 +82,30 @@ export default class WorkspaceChrome extends View {
         .tooltip(label).text_color(dim ? t.dim : t.muted).hover(s => s.bg(t.hover).text_color(t.foreground)).cursor_pointer()
         .on_click(action).child(svg(`mods/nacre-chrome/${name}.svg`).size(15));
       const ready = div().absolute().top(5).right(5).size(6).rounded_full().bg(t.accent);
-      if (collapsed) return h_flex().size_full().bg(t.chrome).border_t(1).border_color(t.border).items_center().justify_center()
+      if (collapsed) return measure(this, h_flex().id("footer-root")).size_full().bg(t.chrome).border_t(1).border_color(t.border).items_center().justify_center()
         .child(icon("settings-menu", "settings", "Settings and machines", false,
           () => openOverlay({ mod: "nacre-chrome", kind: "popup", width: 180, height: 64, props: { footerMenu: true } }))
           .when(Boolean(updates().app.ready), el => el.child(ready)));
-      return h_flex().size_full().bg(t.chrome).border_t(1).border_color(t.border).px(8).gap(4).items_center()
+      return measure(this, h_flex().id("footer-root")).size_full().bg(t.chrome).border_t(1).border_color(t.border).px(8).gap(4).items_center()
         .child(icon("settings", "settings", "Settings", false, () => run("app.settings"))
           .when(Boolean(updates().app.ready), el => el.child(ready)))
         .child(icon("machine", "plus", "Add machine", true, () => run("mod.open", { name: "machine-add" })));
     }
     // As Herdr T3's sidebar header: no search, and Hide sidebar (cmd-b brings it back). The
     // Inbox/Agents switch is in those lists' own headers (their props.switch).
-    // Shrinking (the sidebar's width, the same stages as the lists): "Herdr" goes when it no longer fits
-    // (214 with the macOS window buttons), the buttons on the rail (under 160); the logo always stays,
-    // but for the macOS rail, where the window buttons fill the row.
-    const W = find(layout(), "sidebar")?.size?.px ?? Infinity;
-    return h_flex().size_full().bg(t.chrome).pl(collapsed ? 6 : 14).pr(8).gap(0).items_center().text_size(14)
-      .when(window()?.platform === "macos" && !window()?.fullscreen && !collapsed, el => el.pl(76))
+    // Shrinking, by what fits in the width as drawn: "Herdr" goes under Full, then the logo, then Search; Hide
+    // sidebar stays until the rail. On macOS the window buttons take the first 76px (none in full screen).
+    const W = liveWidth(this);
+    const lights = window()?.platform === "macos" && !window()?.fullscreen;
+    const left = collapsed ? 6 : lights ? 76 : 14, room = W - left - 8; // 8: the right padding
+    const BTN = 28, LOGO = 20 + 8; // the logo and its gap
+    const search = !collapsed && room >= 2 * BTN;
+    const logo = collapsed ? !lights : room >= LOGO + (search ? 2 : 1) * BTN;
+    return measure(this, h_flex().id("header-root")).size_full().bg(t.chrome).pl(left).pr(8).gap(0).items_center().text_size(14)
       .child(h_flex().flex_1().min_w(0).gap(8).items_center()
-        .when(!(collapsed && window()?.platform === "macos"), el => el.child(image("frame/welcome/herdr.png").size(20).flex_none().rounded(5)))
-        .when(W >= 214, el => el.child(div().truncate().font_medium().text_color(t.foreground).child("Herdr"))))
-      .when(!collapsed, el => el.child(this.button("search", svg("mods/nacre-chrome/search-t3.svg").size(16), () => run("mod.open", { name: "picker" })).tooltip("Search"))
-        .child(this.button("sidebar-toggle", svg("mods/nacre-chrome/panel-left.svg").size(16), () => run("layout.toggle", { id: "sidebar" })).tooltip("Hide sidebar")));
+        .when(logo, el => el.child(image("frame/welcome/herdr.png").size(20).flex_none().rounded(5)))
+        .when(logo && W >= FULL, el => el.child(div().truncate().font_medium().text_color(t.foreground).child("Herdr"))))
+      .when(search, el => el.child(this.button("search", svg("mods/nacre-chrome/search-t3.svg").size(16), () => run("mod.open", { name: "picker" })).tooltip("Search")))
+      .when(!collapsed, el => el.child(this.button("sidebar-toggle", svg("mods/nacre-chrome/panel-left.svg").size(16), () => run("layout.toggle", { id: "sidebar" })).tooltip("Hide sidebar")));
   }
 }

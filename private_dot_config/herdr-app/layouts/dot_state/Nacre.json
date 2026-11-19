@@ -2,7 +2,7 @@
   "nodes": {
     "agents-stack": {
       "size": {
-        "weight": 0.9461919
+        "weight": 0.96923107
       }
     },
     "panel-body": {
@@ -10,12 +10,12 @@
     },
     "sidebar": {
       "size": {
-        "px": 315.0
+        "px": 296.0
       }
     },
     "spaces": {
       "size": {
-        "weight": 0.95277935
+        "weight": 0.92974025
       }
     }
   },

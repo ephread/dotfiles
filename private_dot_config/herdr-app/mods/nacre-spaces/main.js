@@ -65,8 +65,26 @@ function find(node, id) {
   return null;
 }
 
-// The sidebar's rail goes by its width, not a flag: dragging its edge narrows it too.
-const narrow = () => (find(layout(), "sidebar")?.size?.px ?? Infinity) < 160;
+// The sidebar's stages, the same in every Nacre sidebar mod (nacre-chrome, nacre-spaces, nacre-agents, t3-inbox),
+// by the sidebar's width in layout px: Full (>= FULL) everything; Medium (COMPACT..FULL) no secondary labels
+// (the header's "Herdr", the Inbox's state words); Compact (RAIL..COMPACT) one line a row, no times, branch
+// lines or header icons; Rail (< RAIL) icons, disks and counts only.
+const RAIL = 90, COMPACT = 200, FULL = 240; // RAIL: only the collapsed widths (76 on macOS, 44 elsewhere)
+// The rail goes by the width, not a flag: dragging the sidebar's edge narrows it too.
+const narrow = () => (find(layout(), "sidebar")?.size?.px ?? Infinity) < RAIL; // the saved size
+// The width as drawn now: the block's measured size, which follows a drag of the sidebar's edge frame by frame
+// (layout()'s px is the saved size and catches up only later); before the first measure, the layout's.
+// Every block in the sidebar is as wide as the sidebar. `measure(el)` goes on the mod's root.
+function liveWidth(view) { return view.measuredW ?? find(layout(), "sidebar")?.size?.px ?? Infinity; }
+function measure(view, el) {
+  return el.on_size_change((size, cx) => {
+    const w = size.width / (Number(settings()?.zoom) || 1);
+    if (Math.round(w) === Math.round(view.measuredW ?? -1)) return;
+    view.measuredW = w;
+    cx.notify();
+  });
+}
+
 
 // Where a space is now: its first terminal's live folder, else where it was made.
 // `ps`: panes(), read once by the caller (each read copies every pane).
@@ -74,12 +92,11 @@ function place(s, ps) {
   const tabs = new Set((s.tabs ?? []).map((c) => c.id));
   return ps.find((p) => tabs.has(p.tab) && p.cwd)?.cwd || s.folder;
 }
-// Shrinking (the sidebar's width; the header and lists use the same stages): with "Herdr" (under 214) the branch line and
-// the repo tail go; then a name that doesn't fit becomes its number; on the rail (under 160) disk + number.
-const sidebarW = () => find(layout(), "sidebar")?.size?.px ?? Infinity;
-const DETAIL = 214; // when the header's "Herdr" goes
+// Shrinking (the stages above): under Compact the branch line and the repo tail go, and a name that doesn't fit
+// becomes its number; on the rail, disk + number.
+const DETAIL = COMPACT; // two-line rows down to here
 // Two lines (name 17px tall, branch 13px, touching) with 7px above and below; one line under the detail stage.
-const rowHeight = ({ tree }) => sidebarW() >= DETAIL ? (tree ? 42 : 44) : (tree ? 28 : 30);
+const rowHeight = ({ tree }, W) => W >= DETAIL ? (tree ? 42 : 44) : (tree ? 28 : 30);
 const RAIL_CELL = 32;
 // A space's name and its git tail never shrink below this, so a short one ("api")
 // stays readable instead of turning into an ellipsis next to a long branch.
@@ -422,9 +439,11 @@ export default class Spaces extends View {
     const t = theme(), disks = {};
     for (const { w } of list) { const color = this.diskColor(w, t); disks[w.id] = { color, ring: lowContrast(color, t.chrome), name: w.name }; }
     if (JSON.stringify(disks) !== JSON.stringify(shared("space.disks") ?? null)) setShared("space.disks", disks);
-    // And its git facts: shared "space.git" = { id: { top, linked, branch } }, for the task dialog and the Inbox.
-    const facts = {};
-    for (const { w, g } of list) if (g) facts[w.id] = { top: g.top ?? null, linked: Boolean(g.linked), branch: g.branch ?? null };
+    // And its git facts: shared "space.git" = { id: { top, linked, branch, root } }, for the task dialog and the Inbox;
+    // `root` is the space of the repo's main checkout a worktree space nests under (else its own id).
+    const facts = {}, roots = {};
+    for (const { w, g } of list) if (g && !g.linked) roots[g.repo] ??= w.id;
+    for (const { w, g } of list) if (g) facts[w.id] = { top: g.top ?? null, linked: Boolean(g.linked), branch: g.branch ?? null, root: (g.linked && roots[g.repo]) || w.id };
     if (JSON.stringify(facts) !== JSON.stringify(shared("space.git") ?? null)) setShared("space.git", facts);
     // And each worktree space's PR: shared "space.pr" = { id: { number, url, state, checks, decision, newsAt } }.
     const prs = {};
@@ -573,18 +592,16 @@ export default class Spaces extends View {
 
   row({ w, i, g, tree }, t) {
     const on = w.active;
-    const W = sidebarW(), detail = W >= DETAIL;
+    const W = liveWidth(this), detail = W >= DETAIL;
     const cwd = place(w, panes()) ?? "";
     const normalized = (path) => path.replace(/\\/g, "/").replace(/\/+$/, "");
     const dir = g?.top && normalized(cwd) === normalized(g.top) ? "" : base(cwd);
-    // Under the detail stage a name that won't fit (about 7.8px a character at 14px) shows its number instead.
-    const fits = [...w.name].length * 7.8 <= W - 60;
     const fromIndex = this.pressed === null ? -1 : spaces().findIndex(s => s.id === this.pressed);
     return v_flex()
       .relative()
       .id(`space-${w.id}`)
       .px(8)
-      .h(rowHeight({ tree }))
+      .h(rowHeight({ tree }, W))
       .flex_none()
       .justify_center()
       .rounded(8)
@@ -625,17 +642,27 @@ export default class Spaces extends View {
           .w_full()
           .gap(9)
           .items_center()
-          .when(Boolean(tree), el => el.pl(22).child(h_flex().size(18).flex_none().items_center().justify_center().child(this.disk(w, t))))
-          .when(!tree && !detail, el => el.child(h_flex().size(18).flex_none().items_center().justify_center().child(this.disk(w, t))))
-          // Round avatar with the space's number (ctrl-1..9), filled with the space's mise color when it has one.
-          .when(!tree && detail, el => el.child(h_flex().size(18).flex_none().rounded(9).bg(this.diskColor(w, t)).items_center().justify_center().text_size(10.5).font_semibold().text_color(letterOn(this.diskColor(w, t))).child(badge(i, w.name))))
+          // Round avatar with the space's number (ctrl-1..9), filled with the space's mise color, at every width;
+          // a worktree's (nested under its repo's) a size smaller, as on the rail: 14px, the number at 8.5px.
+          .when(Boolean(tree), el => el.pl(22))
+          .child(this.ringed(w, t, h_flex().size(18).flex_none().items_center().justify_center()
+            .child(h_flex().size(tree ? 14 : 18).flex_none().rounded(tree ? 7 : 9).bg(this.diskColor(w, t)).items_center().justify_center()
+              .text_size(tree ? 8.5 : 10.5).font_semibold().text_color(letterOn(this.diskColor(w, t))).child(badge(i, w.name))), tree ? 20 : 24))
           .child(v_flex().flex_1().min_w(0).overflow_hidden()
             .child(h_flex().w_full().gap(8).items_center()
-              .child(div().flex_initial().min_w(SIDE_MIN).truncate().line_height("17px").font_medium().text_color(t.foreground).child(detail || fits ? w.name : String(i + 1)))
+              .child(div().flex_initial().min_w(SIDE_MIN).truncate().line_height("17px").font_medium().text_color(t.foreground).child(w.name))
               .child(div().flex_1())
               .when(detail, el => el.child(this.gitTail(g ?? {}, tree, w.name, t, dir))))
             .when(detail && Boolean(g), el => el.child(div().truncate().text_size(11).line_height("13px").text_color(t.dim).child(g.branch ?? "detached")))),
       );
+  }
+
+  // An 18px disk cell, ringed (`ring` px across, centred on it) in the space's state colour when something in it
+  // needs you: blocked, or done while you weren't looking. Drawn over the row, so the row doesn't move.
+  ringed(w, t, cell, ring) {
+    if (w.status !== "blocked" && w.status !== "done") return cell;
+    const at = (18 - ring) / 2;
+    return cell.relative().child(div().absolute().top(at).left(at).size(ring).rounded(ring / 2).border(2).border_color(tone(t, w.status)));
   }
 
   // The space's disk: its mise color, else its avatar's; ringed when it would vanish into the sidebar.
@@ -649,28 +676,33 @@ export default class Spaces extends View {
     return div().size(7).flex_none().rounded(3.5).when(lowContrast(color, t.chrome), d => d.border(1).border_color(t.foreground)).bg(color);
   }
 
-  compact({ w, i }, t) {
+  // A rail cell: the space's numbered disk, as the wide rows draw it; ringed in its state's colour when something
+  // in it needs you (blocked, or done while you weren't looking). The name is the tooltip.
+  compact({ w, i, tree }, t) {
+    const color = this.diskColor(w, t), loud = w.status === "blocked" || w.status === "done";
+    // A worktree (nested under its repo's space) is a size smaller: a 14px disk in a 20px ring, the number at 8.5px.
+    const d = tree ? 14 : 18, r = tree ? 20 : 24;
     return railCell(h_flex()
       .id(`space-${w.id}`)
-      .relative()
-      .w(RAIL_CELL + 8)
-      .h(26)
-      .gap(5)
-      .pl(9)
-      .rounded(6)
-      .justify_start()
+      .w(RAIL_CELL)
+      .h(28)
       .items_center()
+      .justify_center()
+      .rounded(7)
+      .tooltip(w.name)
       .when(w.active, (el) => el.bg(t.selected))
       .when(!w.active, (el) => el.hover((s) => s.bg(t.hover)))
       .on_click(() => run("space.select", { id: w.id }))
-      .child(this.disk(w, t))
-      .child(div().text_color(w.active ? t.foreground : t.muted).child(String(i + 1)))
-      .child(div().absolute().right(5).text_color(tone(t, w.status)).child(glyph(w.status))));
+      .child(h_flex().size(r).flex_none().rounded(r / 2).items_center().justify_center()
+        .border(2).border_color(loud ? tone(t, w.status) : "#00000000")
+        .child(h_flex().size(d).flex_none().rounded(d / 2).bg(color).items_center().justify_center()
+          .text_size(tree ? 8.5 : 10.5).font_semibold().text_color(letterOn(color)).child(badge(i, w.name)))));
   }
+
 
   render() {
     const t = theme();
-    const collapsed = narrow();
+    const collapsed = liveWidth(this) < RAIL;
     const palette = ["ansi6", "ansi3", "ansi4", "ansi5", "ansi2", "ansi1"];
     const sp = spaces();
     const ids = new Set(sp.map(p => p.id));
@@ -691,16 +723,18 @@ export default class Spaces extends View {
       this.revealedAt = this.activeAt;
       if (this.activeAt >= 0) this.scroll.scroll_to_item(this.activeAt);
     }
-    return v_flex().size_full().min_h(0).bg(t.chrome).text_size(14)
+    return measure(this, v_flex().id("spaces-root")).size_full().min_h(0).bg(t.chrome).text_size(14)
       .child(h_flex().h(31).pl(16).pr(10).items_center().justify_between().text_size(12).font_medium().text_color(t.dim)
         .when(collapsed, el => el.pl(0).pr(0).justify_center())
         .when(!collapsed, el => el.child("Spaces"))
         .child(div().id("space-new").size(26).flex_none().flex().items_center().justify_center().rounded(6).hover(s => s.bg(t.hover).text_color(t.foreground))
           .on_click(() => run("space.new")).child(svg("mods/workspace-chrome/plus.svg").size(14))))
-      .child(v_flex().flex_1().min_h(0).px(collapsed ? 0 : 8).pb(14).overflow_y_scrollbar().mode("always").track_scroll(this.scroll)
-        // A block above (another mod's) growing, or the window resizing, shrinks this list and can push the active space out.
-        .on_size_change((_size, cx) => { if (this.activeAt >= 0) { this.scroll.scroll_to_item(this.activeAt); cx.notify(); } })
-        .on_mouse_up("left", (_e, cx) => { this.pressed = null; cx.notify(); })
-        .children(list));
+      // No scrollbar, as the Agents and Inbox lists: a mod's bar can't be drawn like the terminals', so none.
+      .child(v_flex().relative().flex_1().min_h(0)
+        .child(v_flex().id("spaces-list").size_full().px(collapsed ? 0 : 8).pb(14).overflow_y_scroll().track_scroll(this.scroll)
+          // A block above (another mod's) growing, or the window resizing, shrinks this list and can push the active space out.
+          .on_size_change((_size, cx) => { if (this.activeAt >= 0) { this.scroll.scroll_to_item(this.activeAt); cx.notify(); } })
+          .on_mouse_up("left", (_e, cx) => { this.pressed = null; cx.notify(); })
+          .children(list)));
   }
 }

@@ -1,6 +1,6 @@
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, Popup } from "gpui-base";
-import { settings, props, shared, exec, openOverlay } from "herdr";
+import { settings, props, shared, exec, openOverlay, layout } from "herdr";
 import { namer } from "./name.js";
 import { projectMark } from "./project.js";
 import { glow, tip, tipMark, keyOf } from "./tip.js";
@@ -12,6 +12,7 @@ import { stop, within } from "./focus.js";
 import { snoozeButton } from "./snooze.js";
 import { SLIM } from "./list-view.js";
 import { openMenu } from "./menu.js";
+import { sidebarWidth, RAIL, COMPACT, FULL } from "./sidebar.js";
 
 // The settle key: the layout's tab bar holds it; a standalone Inbox, its own command.
 const settleKey = () => keyOf("t3-tabs.settle") ? "t3-tabs.settle" : "t3-inbox.settle";
@@ -37,15 +38,22 @@ function left(ms, now) {
   return m < 60 ? `${m}m` : m < 1440 ? `${Math.ceil(m / 60)}h` : `${Math.ceil(m / 1440)}d`;
 }
 
+// A chip's text: dark on light fills, white on the rest, as the Spaces sidebar's disks.
+function letterOn(hex) {
+  const h = String(hex).replace("#", "").slice(0, 6);
+  const [r, g, b] = [0, 2, 4].map((i) => { const c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.4 ? "#1b1f24a6" : "#ffffffbf";
+}
+
 export function inboxRowView(view, t, model, actions, drag) {
   const { now, ps, sp, state, viewing, running, woke, busy, pins, started, since, wake, hidden, napUntil, settledAt } = model;
   const { settle, unsettle, away, pick } = actions;
   const { dragging, plan, verb, badge, swept, row, open, sweepFrom, justDropped } = drag;
   const zoom = Number(settings()?.zoom) || 1;
   const title = namer();
-  // Local change, shrinking (the sidebar's width, as the Agents and Spaces lists): under 240 the state's word goes (its mark
-  // stays), under 200 its time and the branch line, on the rail (under 160) a card is only its icons.
-  const W = view.width ?? Infinity;
+  // Local change, shrinking (sidebar.js's stages, as the Agents and Spaces lists): under Full the state's word goes (its
+  // mark stays), under Compact its time and the branch line, on the rail a card is only its icons.
+  const W = sidebarWidth(view, layout());
   const hover = (a) => (on, cx) => {
     if (on) { view.hovered = a.address; detailsFor(view, a.address, cx); }
     else if (view.hovered === a.address) { view.hovered = null; detailsFor(view, null, cx); }
@@ -60,6 +68,19 @@ export function inboxRowView(view, t, model, actions, drag) {
     if (!disk) return projectMark("mods/t3-inbox", sp.find((s) => s.id === id) ?? { name: name ?? "" }, size, t, ps);
     return h_flex().size(size).flex_none().items_center().justify_center()
       .child(div().size(7).rounded(3.5).bg(disk.color).when(disk.ring, (d) => d.border(1).border_color(t.foreground)));
+  };
+  // Local change: off the rail, a card's surtitle leads with a chip naming the space's root (a worktree's main checkout,
+  // else the space itself) in its colour, Title Case, as the Spaces sidebar draws it (shared "space.disks": mise's colour and
+  // label unless renamed); then the space's own name, as before, when it says something else.
+  const chip = (a) => {
+    const disks = shared("space.disks") ?? {}, root = (shared("space.git") ?? {})[a.space]?.root ?? a.space, disk = disks[root];
+    if (!disk) return null;
+    const name = (disk.name || "").split(/(\s+)/).map((w) => /[A-Z]/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)).join("");
+    const own = root === a.space ? "" : (disks[a.space]?.name || a.space_name || "");
+    return { own: own.toLowerCase() === name.toLowerCase() ? "" : own,
+      el: div().flex_none().max_w(140).truncate().h(18).px(6).rounded(5).bg(disk.color)
+        .when(disk.ring, (el) => el.border_1().border_color(t.input))
+        .text_size(12).line_height("18px").font_semibold().text_color(letterOn(disk.color)).child(name) };
   };
   // A control's label in a row belongs to the same group as the row's card, so it too opens at once.
   const delay = detailsLive(view) ? 0 : 150;
@@ -92,7 +113,7 @@ export function inboxRowView(view, t, model, actions, drag) {
   // A click opens it on GitHub; a merged one offers to remove the worktree instead (mods/task).
   const prBadge = (a, ghost) => {
     const pr = (shared("space.pr") ?? {})[a.space];
-    if (!pr || W < 200) return null;
+    if (!pr || W < COMPACT) return null;
     const color = { open: t.ansi2, draft: t.dim, merged: t.ansi5, closed: t.ansi1 }[pr.state] ?? t.dim;
     const ci = pr.checks === "pass" ? ["✓", t.ansi2] : pr.checks === "fail" ? ["✕", t.ansi1] : pr.checks === "pending" ? ["•", t.working] : null;
     const el = h_flex().gap(3).flex_none().items_center().text_size(12).font_medium()
@@ -115,7 +136,7 @@ export function inboxRowView(view, t, model, actions, drag) {
     const st = state(a), on = viewing(a);
     const machine = machineOf(a), branch = branchOf(a);
     // As T3's sidebar, a card says nothing of its sub-agents: its state takes theirs in (tree.js).
-    const meta = W >= 200 ? branch ?? "" : "";
+    const meta = W >= COMPACT ? branch ?? "" : "";
     const pic = programIcon(a.program, 14, t.muted);
     // Snooze is offered for anything not needing the person, working too, as T3's. A failed turn counts as needing them
     // here, and a mod pane has no terminal to hold the label.
@@ -138,8 +159,8 @@ export function inboxRowView(view, t, model, actions, drag) {
     // time in monospace children, one per part, so spacing and width don't hang on the interface font and
     // a monospace space (a full cell) doesn't open "1h 5m" wider than the 4px gaps.
     const pill = (color, mark, label, time) => h_flex().id(`state-${a.address}`).h(20).gap(4).flex_none().items_center().font_medium().text_color(color)
-      .child(mark).when(W >= 240, (el) => el.child(div().child(label)))
-      .when(Boolean(time) && W >= 200, (el) => el.children(time.split(" ").map((part) => div().font_family(settings().font_family ?? "JetBrains Mono").child(part))));
+      .child(mark).when(W >= FULL, (el) => el.child(div().child(label)))
+      .when(Boolean(time) && W >= COMPACT, (el) => el.children(time.split(" ").map((part) => div().font_family(settings().font_family ?? "JetBrains Mono").child(part))));
     // It wakes where it was, so this carries the weight, as T3's; a click dismisses it, and it stays on hover.
     const wokeMark = woke(a) && tip(view, t, `woke-${a.address}`, "Dismiss Woke notification", stop(view, t, `woke-${a.address}`, h_flex().id(`woke-${a.address}`).h(20).gap(4).flex_none().items_center().font_medium().text_color(t.blocked)
       .hover((s) => s.underline()).on_hover(glow(view, `woke-${a.address}`)).role("button").accessibility_label("Dismiss Woke notification")
@@ -162,7 +183,7 @@ export function inboxRowView(view, t, model, actions, drag) {
           : wokeMark
             || (st === "done"
               ? pill(t.ansi2, svg("mods/t3-inbox/icons/circle-check.svg").size(16).flex_none().text_color(t.ansi2), "Done")
-              : div().id(`state-${a.address}`).flex_none().child(since(a) > 0 && W >= 200 ? ago(since(a), now) : ""));
+              : div().id(`state-${a.address}`).flex_none().child(since(a) > 0 && W >= COMPACT ? ago(since(a), now) : ""));
     // Still at work when it wakes, it says both, as T3's row; hovered, Woke stays and Working makes way.
     const status = running(a) && wokeMark ? h_flex().gap(4).flex_none().items_center().when(!acting, (el) => el.child(word)).child(wokeMark) : word;
     // T3's align="end" with its flip: right edges together if the menu fits to the clock's left, else from the clock's left edge and out over the sidebar's. Popover only clamps, so the flip is here; no press (the keyboard), the flip.
@@ -190,19 +211,33 @@ export function inboxRowView(view, t, model, actions, drag) {
         .child("Settle")
         .when(offer, (el) => stop(view, t, id, el, 6)), { action: on ? settleKey() : undefined, delay }))));
     // On the rail: the space's mark and the state's, then the program's.
-    if (W < 160) {
-      const mark = running(a) ? svg("mods/workspace-chrome/spinner.svg").size(16).flex_none().text_color(t.working).spin(900)
-        : st === "blocked" ? statusMark(t, "blocked", 16)
-        : st === "done" ? svg("mods/t3-inbox/icons/circle-check.svg").size(16).flex_none().text_color(t.ansi2) : null;
-      const rail = v_flex().id(`${ghost ? "ghost-" : ""}card-${a.address}`).py(6).gap(4).flex_none().items_center().rounded(6);
-      return (ghost ? rail : row(rail, a, details).role("button").accessibility_label(title(a)).on_hover(hover(a)).when(Boolean(menuMod), context(a)).on_click(open(a)))
+    if (W < RAIL) {
+      // Local change: one cell per agent, in the Spaces rail's language: the program's icon, ringed in its state's
+      // colour (turning while it works, still when it's blocked or done), the space's colour as a dot in the corner.
+      const work = running(a), loud = st === "blocked" || st === "done";
+      const ring = work ? svg("mods/t3-inbox/icons/ring-working.svg").absolute().top(1).left(1).size(24).text_color(t.working).spin(1100)
+        : loud ? div().absolute().top(1).left(1).size(24).rounded(12).border(2).border_color(st === "blocked" ? t.blocked : t.done) : null;
+      const disk = (shared("space.disks") ?? {})[a.space];
+      const icon = (a.program && programIcon(a.program, 16, t.muted)) || avatar(a.space, a.space_name, 16);
+      const cell = h_flex().relative().size(26).flex_none().items_center().justify_center()
+        .when(Boolean(ring), (el) => el.child(ring))
+        .child(div().flex_none().when(!work && !loud && st !== "working", (d) => d.opacity(0.7)).child(icon))
+        .when(Boolean(disk), (el) =>
+        // The space's dot at the corner, just outside the 24px ring (centres 17.7 apart, radii 12 + 4.5), so the two
+        // never overlap and look the same whichever GPUI paints first (it doesn't keep code order for turning svgs).
+        el.child(div().absolute().right(-4).bottom(-4).size(9)
+          .child(svg("mods/t3-inbox/icons/dot.svg").absolute().top(0).left(0).size(9).text_color(t.chrome))
+          .child(svg("mods/t3-inbox/icons/dot.svg").absolute().top(2).left(2).size(5).text_color(disk.color))));
+      const rail = v_flex().id(`${ghost ? "ghost-" : ""}card-${a.address}`).h(34).w(32).flex_none().items_center().justify_center().rounded(7);
+      const card = (ghost ? rail : row(rail, a, details).role("button").accessibility_label(title(a)).on_hover(hover(a)).when(Boolean(menuMod), context(a)).on_click(open(a)))
         .when(on, (el) => el.bg(t.selected))
         .when(!on && !ghost && !dragging, (el) => el.hover((s) => s.bg(t.hover)))
-        .child(h_flex().gap(4).items_center().child(avatar(a.space, a.space_name, 16)).when(Boolean(mark), (el) => el.child(mark)))
-        .when(Boolean(a.program), (el) => { const p = programIcon(a.program, 14, t.muted); return p ? el.child(div().flex_none().opacity(0.6).child(p)) : el; });
+        .child(cell);
+      return h_flex().w_full().flex_none().justify_center().child(card);
     }
     // T3's card row: rounded-md, its lines 20, 20 and 16 tall, 4 and 2 apart: 78 with all three. 8 in, not T3's 10, so its words and
     // icons end where the buttons' icons above do (docs/internals/t3-tokens.md「规则」R3).
+    const tag = chip(a);
     const base = v_flex().id(`${ghost ? "ghost-" : ""}card-${a.address}`).px(8).py(8).flex_none().rounded(6)
       // A working row recedes until it's hovered or in view, as T3's.
       .when(!ghost, (el) => el.opacity(running(a) && !woke(a) && !on && !over ? 0.7 : 1).transition("opacity", MOTION));
@@ -211,10 +246,11 @@ export function inboxRowView(view, t, model, actions, drag) {
       .when(on, (el) => el.bg(t.selected))
       .when(!on && !ghost && !dragging && !view.sweep?.moved, (el) => el.when(menu, (m) => m.bg(t.hover)).hover((s) => s.bg(t.hover)).active((s) => s.bg(t.selected)))
       .child(h_flex().h(20).gap(6).items_center().text_size(12).text_color(t.dim)
-        .child(avatar(a.space, a.space_name, 16))
+        .when(!tag, (el) => el.child(avatar(a.space, a.space_name, 16)))
         // Lifted, a pin keeps its glyph only while it stays among the pins.
         .when(pins.includes(a.address) && (!ghost || plan?.section === "pinned" || !plan), (el) => el.child(svg("mods/t3-inbox/icons/pin.svg").size(12).flex_none().text_color(t.dim)))
-        .child(div().flex_1().min_w(0).truncate().child(a.space_name ?? ""))
+        .when(Boolean(tag), (el) => el.child(tag.el))
+        .child(div().flex_1().min_w(0).truncate().child(tag ? tag.own : a.space_name ?? ""))
         .when(Boolean(prBadge(a, ghost)), (el) => el.child(prBadge(a, ghost)))
         .child(corner))
       .child(h_flex().h(20).mt(4).gap(6).items_center()
@@ -258,13 +294,13 @@ export function inboxRowView(view, t, model, actions, drag) {
       .when(on, (el) => el.bg(t.selected))
       .when(!on && !ghost && !dragging && !view.sweep?.moved, (el) => el.hover((s) => s.bg(t.hover)).active((s) => s.bg(t.selected)))
       .child(h_flex().id(`slim-mark-${a.address}`).size(16).flex_none().items_center().justify_center().opacity(bright ? 1 : 0.4).transition("opacity", MOTION).child(ghost ? mark : tipMark(view, t, `slim-space-${a.address}`, a.space_name, mark, { delay })))
-      .when(W < 160, (el) => el.justify_center().px(0))
-      .when(W >= 160, (el) => el.child(div().flex_1().min_w(0).truncate().when(on, (el) => el.font_medium()).text_color(bright ? t.foreground : t.muted).child(title(a))))
+      .when(W < RAIL, (el) => el.justify_center().px(0))
+      .when(W >= RAIL, (el) => el.child(div().flex_1().min_w(0).truncate().when(on, (el) => el.font_medium()).text_color(bright ? t.foreground : t.muted).child(title(a))))
       .when(Boolean(prBadge(a, ghost)), (el) => el.child(prBadge(a, ghost)))
-      .when(W >= 160, (el) => el.child(ghost ? (verb ? badge(verb) : div()) : swept(a) ? badge(view.sweep.action === "unsnooze" ? "wake" : "unsettle")
+      .when(W >= RAIL, (el) => el.child(ghost ? (verb ? badge(verb) : div()) : swept(a) ? badge(view.sweep.action === "unsnooze" ? "wake" : "unsettle")
         // T3's corner: the time fades out on hover as the undo arrow fades in over it.
         : h_flex().id(`slim-corner-${a.address}`).relative().h(24).min_w(32).flex_none().items_center().justify_end()
-          .child(div().flex_none().text_size(12).text_color(t.dim).opacity(over ? 0 : 1).transition("opacity", MOTION).child(W >= 200 ? time : ""))
+          .child(div().flex_none().text_size(12).text_color(t.dim).opacity(over ? 0 : 1).transition("opacity", MOTION).child(W >= COMPACT ? time : ""))
           .child(div().absolute().top(0).right(-4).child(tip(view, t, undoId, undoLabel, undo, { action: on && !napping ? settleKey() : undefined, delay })))))
       .when(!ghost, (el) => stop(view, t, `slim-${a.address}`, el));
   };

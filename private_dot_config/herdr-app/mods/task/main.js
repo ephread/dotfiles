@@ -10,12 +10,25 @@
 //
 // Finish (props: { finish: spaceId }): a task in a worktree is done: open a PR, remove the worktree, or keep it.
 import { View, div, svg, image } from "gpui-kit";
-import { v_flex, h_flex, InputState, Input } from "gpui-base";
+import { v_flex, h_flex, InputState, Input, TextareaState, Textarea } from "gpui-base";
 import { props, closeOverlay, theme, spaces, panes, exec, home, appHome, readTextFile, shared, knownAgents, run, notify, checking } from "herdr";
 
 const base = (p) => (p ?? "").replace(/\/+$/, "").split("/").pop();
 const tilde = (p, h) => (h && p?.startsWith(h) ? "~" + p.slice(h.length) : p ?? "");
 // A branch from the task's first words: "Fix the login bug" -> "fix-the-login-bug".
+// A Notion page link's id: the 32 hex digits ending its path ("…-3fba540e…1564?source=copy_link"),
+// with or without dashes, or a peek's ?p=<id>.
+function notionId(url) {
+  const [path, query = ""] = (url ?? "").trim().split(/[?#]/);
+  const hex = (x) => /([0-9a-f]{32})$/i.exec((x ?? "").replace(/\/+$/, "").replace(/-/g, ""))?.[1]?.toLowerCase() ?? null;
+  return hex(/(?:^|&)p=([^&]+)/.exec(query)?.[1]) ?? hex(path.split("/").pop().slice(-36));
+}
+// As this repo's branches are named: "feat/CRN-1124-customer-single-sign-on" for
+// "Associate (iOS): Customer single sign-on" (a "Scope:" lead-in is left out).
+const ticketBranch = (id, title) => {
+  const rest = (title ?? "").replace(/^[^:]{1,40}:\s*/, "") || title || "";
+  return "feat/" + [id, slug(rest)].filter(Boolean).join("-");
+};
 const slug = (text) => text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").split("-").slice(0, 6).join("-").slice(0, 48);
 
 // Where a space is now: its first terminal's folder (as the Spaces sidebar and git use it), else where it began.
@@ -40,6 +53,28 @@ async function herdr(command, args) {
 
 const SETUP_MARK = "__herdr_setup=";
 
+// A space's name: at most three words, Title Case (a word already holding a capital, "iOS", "CRN-12", stays as written).
+const STOP = new Set("a an the and or of to in on for with from by at as is are be it this that these those into via please can could would should we i you my our".split(" "));
+function titled(words) { return words.slice(0, 3).map((w) => /[A-Z]/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)).join(" "); }
+// Without the model: the ticket's title (less its "Area:" prefix), else the task, less filler words.
+function plainName(task, ticket) {
+  const from = (ticket?.title ?? "").replace(/^[^:]{1,40}:\s*/, "") || task;
+  const words = from.split("\n")[0].replace(/[^\p{L}\p{N}\s-]/gu, " ").split(/\s+/).filter((w) => w && !STOP.has(w.toLowerCase()));
+  return titled(words);
+}
+// A short name for the task's space from a small model; the plain one when it's slow, missing or says too much.
+async function spaceName(task, ticket) {
+  const fallback = plainName(task, ticket);
+  const ask = "Name this coding task as a label for its workspace: at most THREE words, Title Case, no punctuation, no quotes. " +
+    "Reply with the label only.\n\nTask:\n" + [ticket?.title, task].filter(Boolean).join("\n").slice(0, 2000);
+  try {
+    const r = await exec("sh", ["-c", 'PATH="$PATH:$HOME/.local/bin:$HOME/.local/share/mise/shims"; exec claude -p --model haiku "$1" </dev/null', "sh", ask], { timeout: 25000 });
+    const line = (r.stdout ?? "").trim().split("\n").pop().replace(/["'`*.:!]/g, "").trim();
+    const words = line.split(/\s+/).filter(Boolean);
+    return r.code === 0 && words.length > 0 && words.length <= 6 && line.length <= 60 ? titled(words) : fallback;
+  } catch { return fallback; }
+}
+
 export default class Task extends View {
   init(_props, cx) {
     this.finishing = Boolean(props()?.finish);
@@ -56,15 +91,25 @@ export default class Task extends View {
     this.agentAt = 0;
     this.where = "worktree"; // or "here"
     this.branchEdited = false;
-    this.task = InputState.new({ placeholder: "What should the agent do?" });
+    // The task: a textarea that grows to 14 rows, then scrolls.
+    this.task = TextareaState.new({ placeholder: "What should the agent do?", rows: 6 });
+    this.task.set_auto_grow(6, 14);
+    this.task.set_soft_wrap(true);
     this.branch = InputState.new({ placeholder: "branch name" });
+    // An optional Notion ticket: its ID and title (read with the ntn CLI) name the branch.
+    this.notion = InputState.new({ placeholder: "https://app.notion.com/p/… (optional)" });
+    this.ticket = null; // { id: "CRN-1124", title, branch } once read
+    this.ticketState = ""; // "", "reading", or an error
+    this.ticketFor = null;
     this.task.on("change", (_e, cx) => {
-      if (!this.branchEdited) this.branch.set_value(slug(this.task.value()));
+      if (!this.branchEdited) this.branch.set_value(this.autoBranch());
       this.error = "";
       cx.notify();
     });
     this.task.on("submit", (_e, cx) => this.start(cx));
-    this.branch.on("change", (_e, cx) => { this.branchEdited = this.branch.value() !== slug(this.task.value()); this.error = ""; cx.notify(); });
+    this.notion.on("change", (_e, cx) => this.readTicket(cx));
+    this.notion.on("submit", (_e, cx) => this.start(cx));
+    this.branch.on("change", (_e, cx) => { this.branchEdited = this.branch.value() !== this.autoBranch(); this.error = ""; cx.notify(); });
     this.branch.on("submit", (_e, cx) => this.start(cx));
     this.task.focus();
     // Scripted: props { space, task, argv, where?, branch?, start: true } fills the form and starts at once.
@@ -87,6 +132,42 @@ export default class Task extends View {
     });
   }
 
+  // The branch Herdr would pick: the ticket's ("crn-1124-associate-ios-customer-single-sign-on"), else the task's.
+  autoBranch() { return this.ticket?.branch ?? slug(this.task.value()); }
+
+  // Reads the linked ticket once its link has a page id; a newer link wins over a slower older read.
+  readTicket(cx) {
+    const id = notionId(this.notion.value());
+    if (id === this.ticketFor) return;
+    this.ticketFor = id;
+    const before = this.autoBranch();
+    this.ticket = null;
+    this.ticketState = id ? "reading" : (this.notion.value().trim() ? "Not a Notion page link." : "");
+    if (!this.branchEdited && this.branch.value() === before) this.branch.set_value(this.autoBranch());
+    cx.notify();
+    if (!id || checking()) return;
+    cx.spawn(async (cx) => {
+      let ticket = null, problem = "";
+      try {
+        // ntn waits for input on an open stdin: close it. ~/.local/bin is where its installer puts it.
+        const r = await exec("sh", ["-c", 'PATH="$PATH:$HOME/.local/bin"; exec ntn api "v1/pages/$1" </dev/null', "sh", id], { timeout: 20000 });
+        if (r.code !== 0) throw new Error(r.stderr.trim().split("\n").pop() || "ntn failed (try `ntn login`)");
+        const page = JSON.parse(r.stdout), props = Object.values(page.properties ?? {});
+        const uid = props.find((p) => p.type === "unique_id")?.unique_id;
+        const title = (props.find((p) => p.type === "title")?.title ?? []).map((x) => x.plain_text).join("").trim();
+        const key = uid ? [uid.prefix, uid.number].filter((x) => x !== null && x !== undefined && x !== "").join("-") : "";
+        if (!key && !title) throw new Error("That page has no ID or title.");
+        ticket = { id: key, title, branch: ticketBranch(key, title) };
+      } catch (e) { problem = `Couldn't read the ticket: ${e?.message ?? e}`; }
+      if (this.ticketFor !== id) return; // the link changed meanwhile
+      const before = this.autoBranch();
+      this.ticket = ticket;
+      this.ticketState = problem;
+      if (!this.branchEdited && this.branch.value() === before) this.branch.set_value(this.autoBranch());
+      cx.notify();
+    });
+  }
+
   space() { return spaces().find((s) => s.id === (this.spaceId ?? props()?.finish)); }
   close() { closeOverlay(props().overlay); }
 
@@ -94,7 +175,12 @@ export default class Task extends View {
 
   start(cx) {
     if (this.busy) return;
-    const s = this.space(), agent = this.agents?.[this.agentAt], task = this.task.value().trim();
+    const s = this.space(), agent = this.agents?.[this.agentAt];
+    // The linked Notion ticket goes to the agent with the task: its ID and title when read, and always its link.
+    const link = this.notion?.value().trim() ?? "", written = this.task.value().trim();
+    const about = this.ticket ? [this.ticket.id, this.ticket.title].filter(Boolean).join(" — ") : "";
+    const ticket = notionId(link) ? `Notion ticket: ${about ? `${about}\n` : ""}${link}` : "";
+    const task = written && ticket ? `${written}\n\n${ticket}` : written;
     if (!s) { this.error = "Pick a space."; return cx.notify(); }
     if (!agent) { this.error = this.agents ? "No installed agent found." : "Still looking for agents…"; return cx.notify(); }
     if (!task) { this.error = "Write the task first."; return cx.notify(); }
@@ -103,12 +189,14 @@ export default class Task extends View {
     this.busy = true;
     this.error = "";
     cx.notify();
+    // A new space gets a short name from the task while the worktree is made; it's a plain name, renamed at will.
+    const naming = this.where === "worktree" && !checking() ? spaceName(written || task, this.ticket) : null;
     cx.spawn(async (cx) => {
       try {
         if (this.where === "here") {
           run("tab.new", { space: s.id, folder: placeOf(s) || undefined, argv: agent.run, task });
         } else {
-          await this.inWorktree(s, agent, task, branch, (step) => { this.step = step; cx.notify(); });
+          await this.inWorktree(s, agent, task, branch, (step) => { this.step = step; cx.notify(); }, naming);
         }
         this.busy = false;
         this.close();
@@ -121,7 +209,7 @@ export default class Task extends View {
     });
   }
 
-  async inWorktree(s, agent, task, branch, say) {
+  async inWorktree(s, agent, task, branch, say, naming) {
     const on = s.machine ?? null, cwd = placeOf(s);
     say("Reading the repository…");
     const top = await git(cwd, ["rev-parse", "--show-toplevel"], on);
@@ -157,6 +245,10 @@ export default class Task extends View {
     let hasSetup = false;
     try { hasSetup = (await exec("mise", ["tasks", "info", "worktree-setup"], { cwd: target, on })).code === 0; } catch {}
     const machine = on ? { machine: on } : {};
+    // The name, if it's ready within a few more seconds (else none: Herdr's own, which follows the folder).
+    if (naming) say("Naming the space…");
+    const name = naming ? await Promise.race([naming, new Promise((ok) => exec("sleep", ["8"]).then(() => ok(null), () => ok(null)))]) : null;
+    if (name) machine.name = name;
     if (!hasSetup) {
       say("Starting the agent…");
       await herdr("space.new", { folder: target, argv: agent.run, task, ...machine });
@@ -166,7 +258,7 @@ export default class Task extends View {
     say("Running worktree-setup… (see the new space)");
     const shell = on ? "sh" : "zsh";
     const made = await herdr("space.new", {
-      folder: target, name: undefined, ...machine,
+      folder: target, ...machine,
       argv: [shell, on ? "-lc" : "-ic", `mise run worktree-setup; echo "${SETUP_MARK}$?"; exec ${shell} -i`],
     });
     // Poll its screen: hc wait (3s at a time) for the mark, then read the exit code.
@@ -309,7 +401,14 @@ export default class Task extends View {
       .child(h_flex().flex_wrap().gap(6).children(roots.map((s) =>
         this.chip(`sp-${s.id}`, s.id === this.spaceId, [this.disk(s.id), div().child((shared("space.disks") ?? {})[s.id]?.name ?? s.name)], (_e, cx) => { this.spaceId = s.id; cx.notify(); }))))
       .child(this.label("Task"))
-      .child(this.field(this.task))
+      .child(Textarea.new(this.task).w_full().px(10).py(8).rounded(9).border_1().border_color(t.input).bg(t.background).text_size(12.8).text_color(t.foreground))
+      .child(this.label("Notion ticket"))
+      .child(this.field(this.notion))
+      .when(Boolean(this.ticket || this.ticketState), (el) => el.child(h_flex().pt(6).gap(6).items_center().text_size(11.5).min_w(0)
+        .when(this.ticketState === "reading", (x) => x.text_color(t.dim).child(div().frames(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"], 90)).child("Reading the ticket…"))
+        .when(Boolean(this.ticketState) && this.ticketState !== "reading", (x) => x.text_color(t.blocked).child(div().child(this.ticketState)))
+        .when(Boolean(this.ticket), (x) => x.child(div().flex_none().font_medium().text_color(t.foreground).child(this.ticket.id))
+          .child(div().flex_1().min_w(0).truncate().text_color(t.muted).child(this.ticket.title)))))
       .child(this.label("Agent"))
       .child(this.agents === null ? div().h(30).text_color(t.dim).child("…")
         : h_flex().flex_wrap().gap(6).children(this.agents.map((a, i) =>

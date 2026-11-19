@@ -300,7 +300,11 @@ export default class Inbox extends View {
     const draw = inboxRowView(this, t, model, actions, drag);
     const { top, list } = inboxList(this, t, model, actions, drag, draw, cx);
     const tree = drag.root(v_flex().id("t3-inbox-root").relative().size_full().min_h(0).bg(t.chrome).text_size(14)
-      .on_size_change((size) => { this.height = size.height / zoom; this.width = size.width / zoom; }))
+      .on_size_change((size, cx) => {
+        const w = size.width / zoom, moved = Math.round(w) !== Math.round(this.width ?? -1);
+        this.height = size.height / zoom; this.width = w;
+        if (moved) cx.notify(); // the stages (sidebar.js) follow the width as drawn, also mid-drag
+      }))
       .child(top).child(list);
     const ghost = drag.ghost(draw);
     if (ghost) tree.child(ghost);

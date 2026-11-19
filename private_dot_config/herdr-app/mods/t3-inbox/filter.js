@@ -1,6 +1,6 @@
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, Popover, Input } from "gpui-base";
-import { spaces, machines, shared, run, props, openOverlay } from "herdr";
+import { spaces, machines, shared, run, props, openOverlay, layout } from "herdr";
 import { projectMark } from "./project.js";
 import { glow, tip } from "./tip.js";
 import { stop, pressed, justClosed } from "./focus.js";
@@ -8,11 +8,19 @@ import { step, scrollList } from "./list.js";
 import { FIRST } from "./row-model.js";
 import { KEY, closedKey } from "./store.js";
 import { openMenu } from "./menu.js";
+import { sidebarWidth, RAIL, COMPACT } from "./sidebar.js";
 import { button, radiusOf } from "./button.js";
 import { trigger } from "./trigger.js";
 
 // The space filter's rows, flush as T3's, and how many show before the list scrolls: the whole rows T3's 23rem holds.
 const SCOPE_ROW = 32, SCOPE_SHOWN = 9;
+
+// The disk's letter: dark on light fills, white on the rest, as the Spaces sidebar's numbers.
+function letterOn(hex) {
+  const h = String(hex).replace("#", "").slice(0, 6);
+  const [r, g, b] = [0, 2, 4].map((i) => { const c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.4 ? "#1b1f24a6" : "#ffffffbf";
+}
 
 export function inboxMatches(view) {
   const q = view.search.value().toLowerCase();
@@ -33,8 +41,19 @@ export function pickInboxSpace(view, s, shift, cx) {
 export function inboxTop(view, t, model) {
   const { sp, ps, scope } = model;
   const lit = (id, color) => view.hot === id ? t.foreground : color;
-  // A space's mark, as t3-spaces draws it.
-  const avatar = (id, name, size) => projectMark("mods/t3-inbox", sp.find((s) => s.id === id) ?? { name: name ?? "" }, size, t, ps);
+  // Local change: a space's mark is its disk as the Spaces sidebar colors it (shared "space.disks"), lettered with the name's
+  // first letter in semibold; T3's project mark only for a space the sidebar hasn't drawn.
+  const avatar = (id, name, size) => {
+    const disk = (shared("space.disks") ?? {})[id];
+    if (!disk) return projectMark("mods/t3-inbox", sp.find((s) => s.id === id) ?? { name: name ?? "" }, size, t, ps);
+    const letter = (disk.name ?? name ?? "").normalize("NFKC").match(/[\p{L}\p{N}]/u)?.[0]?.toUpperCase() ?? "";
+    // A worktree's disk is smaller, as on the Spaces rail, in the same box so names stay lined up.
+    const d = (shared("space.git") ?? {})[id]?.linked ? Math.round(size * 0.75) : size;
+    return h_flex().size(size).flex_none().items_center().justify_center()
+      .child(h_flex().size(d).flex_none().rounded_full().bg(disk.color).items_center().justify_center()
+        .when(disk.ring, (el) => el.border(1).border_color(t.input))
+        .text_size(d * 0.6).font_semibold().line_height(`${d}px`).text_color(letterOn(disk.color)).child(letter));
+  };
   // T3's top row: search on the left, then the space filter, new space and new tab.
   const asks = props()?.newMenu && machines().length > 1;
   const tool = (id, label, icon, closed, onOpen, action = undefined) => trigger(view, t, id, { icon: `mods/t3-inbox/icons/${icon}.svg`, label, closed, onOpen, action });
@@ -75,7 +94,7 @@ export function inboxTop(view, t, model) {
       .when(scoped.length > 0, el => el.child(scoped.length > 1
         // T3's second mark overlaps by 4 with a 2px ring of the sidebar's color.
         ? h_flex().children(scoped.slice(0, 2).map((s, i) => i === 0 ? avatar(s.id, s.name, 14)
-          : h_flex().flex_none().ml(-6).rounded(6).border(2).border_color(t.chrome).child(avatar(s.id, s.name, 14))))
+          : h_flex().flex_none().ml(-6).rounded_full().border(2).border_color(t.chrome).child(avatar(s.id, s.name, 14))))
         : avatar(scoped[0].id, scoped[0].name, 16))), radiusOf("sm")))
     .content(v_flex().id("inbox-scope-panel").w(288).mt(4).p(4).rounded(8)
       .bg(t.popover).border_1().border_color(t.border).shadow_lg().text_size(14)
@@ -96,22 +115,29 @@ export function inboxTop(view, t, model) {
           draw: (i) => choice(found[i], i), wheeled: (keep) => { view.scopeAt = keep; } })))
         .when(found.length === 0, (el) => el.child(div().p(8).text_center().line_height("20px").text_color(t.dim).child("No matching spaces.")))));
   // T3's top group: 8 in and the search field 4 before its buttons, which touch. The right edge is the brand bar's above, so the two rows of icons line up.
-  // Local change, shrinking as the Agents list's header: the label ellipsizes, its icon goes under 200, the buttons on the rail.
-  const W = view.width ?? Infinity;
-  if (W < 160) return div().id("inbox-top");
+  // Local change, shrinking as the Agents list's header (sidebar.js's stages): the label ellipsizes, its icon goes under
+  // Compact, the buttons on the rail.
+  const W = sidebarWidth(view, layout());
+  // Local change: the Agents/Inbox switch always shows (alone, centred, on the rail); then New task, then Filter, then
+  // the label, each only when it fits whole (8 padding a side, a 4 gap, 28 a button, 16 + ~40 the label).
+  const sw = Boolean(props()?.switch);
+  const switchButton = () => tool("inbox-switch", "Show agents", "bot", undefined, () => { run("layout.select", props().switch); return false; });
+  if (W < RAIL) return h_flex().id("inbox-top").h(32).flex_none().items_center().justify_center().when(sw, (el) => el.child(switchButton()));
+  const avail = W - 16 - 4, fit = (n) => avail >= n * 28;
+  const newTask = fit((sw ? 1 : 0) + 1), filterOn = fit((sw ? 1 : 0) + 2);
+  const n = (sw ? 1 : 0) + (newTask ? 1 : 0) + (filterOn ? 1 : 0), label = avail - n * 28 >= 56;
   const top = h_flex().id("inbox-top").h(32).px(8).gap(4).flex_none().items_center()
     // Local change: no Search here (it's in the sidebar header); the list's name, with the icon that switches to it,
     // laid out as the search field was (32 high, 8 in, 16px icon, 14px medium dim).
     .child(h_flex().id("inbox-title").flex_1().min_w(0).h(32).px(8).gap(8).items_center().text_size(14).font_medium().text_color(t.dim)
-      .when(W >= 200, (el) => el.child(svg("mods/t3-inbox/icons/inbox.svg").size(16).flex_none().text_color(t.dim)))
-      .child(div().truncate().child("Inbox")))
+      .when(W >= COMPACT, (el) => el.child(svg("mods/t3-inbox/icons/inbox.svg").size(16).flex_none().text_color(t.dim)))
+      .when(label, (el) => el.child(div().truncate().child("Inbox"))))
     .child(h_flex().flex_none().items_center()
-    .child(tip(view, t, "inbox-scope", "Filter by space", filter, { off: view.scopeOpen, hint: "Shift+click to pick several", below: true }))
+    .when(filterOn, (el) => el.child(tip(view, t, "inbox-scope", "Filter by space", filter, { off: view.scopeOpen, hint: "Shift+click to pick several", below: true })))
     // Local change: New space and New tab go (the sidebar and tab bar have them); New task (mods/task) takes their place.
-    .child(tool("inbox-new-task", "New task", "square-pen", undefined, () => { run("nacre-chrome.newtask"); return false; }, "nacre-chrome.newtask"))
+    .when(newTask, (el) => el.child(tool("inbox-new-task", "New task", "square-pen", undefined, () => { run("nacre-chrome.newtask"); return false; }, "nacre-chrome.newtask")))
     // Local addition: the layout's Inbox/Agents switch (props.switch = { stack, child }), in place of Herdr T3's header button.
-    .when(Boolean(props()?.switch), (el) => el.child(tool("inbox-switch", "Show agents", "bot", undefined,
-      () => { run("layout.select", props().switch); return false; }))));
+    .when(sw, (el) => el.child(switchButton())));
 
 
   return top;
