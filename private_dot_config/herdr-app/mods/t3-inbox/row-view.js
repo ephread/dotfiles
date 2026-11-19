@@ -71,11 +71,11 @@ export function inboxRowView(view, t, model, actions, drag) {
   };
   // Local change: off the rail, a card's surtitle leads with a chip naming the space's root (a worktree's main checkout,
   // else the space itself) in its colour, Title Case, as the Spaces sidebar draws it (shared "space.disks": mise's colour and
-  // label unless renamed); then the space's own name, as before, when it says something else.
+  // label unless renamed; dashes become spaces); then the space's own name, as before, when it says something else.
   const chip = (a) => {
     const disks = shared("space.disks") ?? {}, root = (shared("space.git") ?? {})[a.space]?.root ?? a.space, disk = disks[root];
     if (!disk) return null;
-    const name = (disk.name || "").split(/(\s+)/).map((w) => /[A-Z]/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)).join("");
+    const name = (disk.name || "").replace(/-+/g, " ").trim().split(/(\s+)/).map((w) => /[A-Z]/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)).join("");
     const own = root === a.space ? "" : (disks[a.space]?.name || a.space_name || "");
     return { own: own.toLowerCase() === name.toLowerCase() ? "" : own,
       el: div().flex_none().max_w(140).truncate().h(18).px(6).rounded(5).bg(disk.color)
